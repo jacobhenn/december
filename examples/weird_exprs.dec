@@ -1,0 +1,14 @@
+fn    main     (         )->          void{s:="Hello, world!"
+; x    := println("test"); println(       s     )
+
+
+
+;
+    y:= x
+
+
+
+
+
+;
+    println(                        y);     }

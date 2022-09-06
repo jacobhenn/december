@@ -1,0 +1,9 @@
+fn main() -> void {
+    if "strings" {
+        println("wat");
+    } else if true {
+        println("huh?");
+    } else {
+        println("it works!!");
+    };
+}

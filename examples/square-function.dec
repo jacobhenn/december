@@ -1,0 +1,9 @@
+fn foo() -> void {
+    println("foo");
+}
+
+fn main() -> void {
+    x := foo();
+    y := println("Hello, world");
+    foo();
+}
