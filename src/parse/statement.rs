@@ -42,11 +42,11 @@ where
 {
     alt((
         terminated(
-            map(expression, |e| Statement::Expression(e)),
+            map(expression, Statement::Expression),
             context("semicolon", spaced0(tag(";"))),
         ),
         terminated(
-            map(definition, |d| Statement::Definition(d)),
+            map(definition, Statement::Definition),
             context("semicolon", spaced0(tag(";"))),
         ),
     ))(s)
@@ -83,8 +83,8 @@ where
     E: ParseError<&'a str> + ContextError<&'a str>,
 {
     alt((
-        map(string::parse, |t| LiteralExpr::StringLiteral(t)),
-        map(bool, |b| LiteralExpr::BoolLiteral(b)),
+        map(string::parse, LiteralExpr::StringLiteral),
+        map(bool, LiteralExpr::BoolLiteral),
     ))(s)
 }
 

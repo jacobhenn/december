@@ -4,8 +4,9 @@ use nom::{
 };
 use std::fmt::Write;
 
-/// adapted for my purposes from https://docs.rs/nom/7.1.1/src/nom/error.rs.html#251-360
-pub fn convert_error<I: core::ops::Deref<Target = str>>(input: I, e: VerboseError<I>) -> String {
+/// adapted for my purposes from
+/// [`nom::error::convert_error`](https://docs.rs/nom/7.1.1/src/nom/error.rs.html#251-360)
+pub fn convert_error<I: core::ops::Deref<Target = str>>(input: I, e: &VerboseError<I>) -> String {
     let mut result = String::new();
 
     // // for debugging purposes
@@ -28,7 +29,7 @@ pub fn convert_error<I: core::ops::Deref<Target = str>>(input: I, e: VerboseErro
             let prefix = &input.as_bytes()[..offset];
 
             // count the number of newlines in the first `offset` bytes of input
-            let line_number = prefix.iter().filter(|&&b| b == b'\n').count() + 1;
+            let line_number = bytecount::count(prefix, b'\n');
 
             // find the line that includes the subslice:
             // find the *last* newline before the substring starts
@@ -36,8 +37,7 @@ pub fn convert_error<I: core::ops::Deref<Target = str>>(input: I, e: VerboseErro
                 .iter()
                 .rev()
                 .position(|&b| b == b'\n')
-                .map(|pos| offset - pos)
-                .unwrap_or(0);
+                .map_or(0, |pos| offset - pos);
 
             // find the full line after that newline
             let line = input[line_begin..]

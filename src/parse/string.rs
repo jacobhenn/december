@@ -68,8 +68,8 @@ enum StringFragment<'a> {
     EscapedWS,
 }
 
-/// Combine parse_literal, parse_escaped_whitespace, and parse_escaped_char
-/// into a StringFragment.
+/// Combine `parse_literal`, `parse_escaped_whitespace`, and `parse_escaped_char`
+/// into a `StringFragment`.
 fn parse_fragment<'a, E>(input: &'a str) -> IResult<&'a str, StringFragment<'a>, E>
 where
     E: ParseError<&'a str>,
@@ -83,7 +83,7 @@ where
     ))(input)
 }
 
-/// Parse a string. Use a loop of parse_fragment and push all of the fragments
+/// Parse a string. Use a loop of `parse_fragment` and push all of the fragments
 /// into an output string.
 pub fn parse<'a, E>(input: &'a str) -> IResult<&'a str, String, E>
 where

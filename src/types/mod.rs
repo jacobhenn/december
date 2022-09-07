@@ -15,20 +15,20 @@ pub enum DecType {
 impl Display for DecType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DecType::Fn(fn_type) => write!(
+            Self::Fn(fn_type) => write!(
                 f,
                 "fn({}) -> {}",
                 fn_type
                     .arg_types
                     .iter()
-                    .map(|t| t.to_string())
+                    .map(Self::to_string)
                     .collect::<Vec<_>>()
                     .join(", "),
                 fn_type.return_type,
             ),
-            DecType::String => f.write_str("String"),
-            DecType::Void => f.write_str("void"),
-            DecType::Bool => f.write_str("bool"),
+            Self::String => f.write_str("String"),
+            Self::Void => f.write_str("void"),
+            Self::Bool => f.write_str("bool"),
         }
     }
 }

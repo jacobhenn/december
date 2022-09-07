@@ -40,9 +40,9 @@ impl Scope {
     }
 
     pub fn get_ident(&self, i: &Identifier) -> Result<DecValue> {
-        if let Some(value) = self.idents.get(&i) {
+        if let Some(value) = self.idents.get(i) {
             Ok(value.clone())
-        } else if let Some(value) = BUILTINS.get(&i) {
+        } else if let Some(value) = BUILTINS.get(i) {
             Ok(value.clone())
         } else {
             bail_ident_error!(i.clone());
@@ -57,7 +57,7 @@ impl Scope {
     }
 
     pub fn evaluate_expr(&mut self, expr: &Expression) -> Result<DecValue> {
-        expr.check_type(&self)?;
+        expr.check_type(self)?;
 
         match expr {
             Expression::Literal(l) => match l {
@@ -79,10 +79,10 @@ impl Scope {
             },
             Expression::If(if_expr) => {
                 for (condition, result) in &if_expr.branches {
-                    let value = self.evaluate_expr(&condition)?;
+                    let value = self.evaluate_expr(condition)?;
                     if let DecValue::Bool(b) = value {
                         if b {
-                            return self.evaluate_block(&result);
+                            return self.evaluate_block(result);
                         }
                     } else {
                         unreachable!("typecheck");
@@ -99,7 +99,7 @@ impl Scope {
     }
 }
 
-pub fn run_func<'a>(f: &DecFn) -> Result<DecValue> {
+pub fn func(f: &DecFn) -> Result<DecValue> {
     let mut scope = Scope::new();
     scope.evaluate_block(&f.block)?;
     if f.return_type == DecType::Void {
@@ -109,10 +109,10 @@ pub fn run_func<'a>(f: &DecFn) -> Result<DecValue> {
     }
 }
 
-pub fn run(program: Program) -> Result<()> {
+pub fn program(program: &Program) -> Result<()> {
     if let Some(Item::Fn(main)) = program.items.get(&Identifier::new(String::from("main"))) {
         if main.args.is_empty() && main.return_type == DecType::Void {
-            run_func(main)?;
+            func(main)?;
         } else {
             return Err(RuntimeError::MainWrongType);
         }

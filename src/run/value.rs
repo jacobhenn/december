@@ -18,16 +18,16 @@ pub enum DecValue {
 impl DecValue {
     pub fn dectype(&self) -> DecType {
         match self {
-            DecValue::Fn(DecFn {
+            Self::Fn(DecFn {
                 args, return_type, ..
             }) => DecType::Fn(FnType {
                 arg_types: args.iter().map(|a| a.dectype.clone()).collect(),
                 return_type: Box::new(return_type.clone()),
             }),
-            DecValue::BuiltinFn { fntype, .. } => DecType::Fn(fntype.clone()),
-            DecValue::String(_) => DecType::String,
-            DecValue::Bool(_) => DecType::Bool,
-            DecValue::Void => DecType::Void,
+            Self::BuiltinFn { fntype, .. } => DecType::Fn(fntype.clone()),
+            Self::String(_) => DecType::String,
+            Self::Bool(_) => DecType::Bool,
+            Self::Void => DecType::Void,
         }
     }
 }

@@ -25,12 +25,12 @@ fn main() -> Result<()> {
 
     match parse::program::<VerboseError<&str>>(&contents) {
         Ok((_, program)) => {
-            if let Err(e) = run::run(program) {
+            if let Err(e) = run::program(&program) {
                 println!("Runtime error: {e:#}");
             }
         }
         Err(Err::Error(e) | Err::Failure(e)) => {
-            println!("{}", convert_error(contents.as_str(), e));
+            println!("{}", convert_error(contents.as_str(), &e));
         }
         _ => (),
     }
