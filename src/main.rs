@@ -1,14 +1,14 @@
+#[macro_use]
+mod error;
+
 mod args;
 mod parse;
 mod run;
 mod types;
 
-use crate::args::Args;
+use crate::{args::Args, error::parse::convert_error};
 use anyhow::{Context, Result};
-use nom::{
-    error::{convert_error, VerboseError},
-    Err,
-};
+use nom::{error::VerboseError, Err};
 use std::{
     fs::File,
     io::{BufReader, Read},
@@ -25,13 +25,11 @@ fn main() -> Result<()> {
 
     match parse::program::<VerboseError<&str>>(&contents) {
         Ok((_, program)) => {
-            println!("parsed complete program:");
-            println!("{program:#?}");
-            println!("running program:");
-            run::run(program)?;
+            if let Err(e) = run::run(program) {
+                println!("Runtime error: {e:#}");
+            }
         }
         Err(Err::Error(e) | Err::Failure(e)) => {
-            println!("syntax error");
             println!("{}", convert_error(contents.as_str(), e));
         }
         _ => (),

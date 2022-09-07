@@ -2,7 +2,7 @@ use super::{spaced0, spaced1, string};
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1},
+    character::complete::{alpha1, alphanumeric1, multispace1},
     combinator::{cut, map, opt, recognize},
     error::{context, ContextError, ParseError},
     multi::{many0, many0_count, separated_list0},
@@ -190,7 +190,13 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
     // TODO: clean up prepending to vector
-    let (s, first_condition) = preceded(tag("if"), spaced1(if_condition))(s)?;
+    let (s, first_condition) = preceded(
+        tag("if"),
+        preceded(
+            multispace1,
+            cut(context("condition of `if` statement", if_condition)),
+        ),
+    )(s)?;
     let (s, mut conditions) = many0(preceded(
         spaced0(tag("else if")),
         cut(spaced1(if_condition)),

@@ -2,10 +2,10 @@ use std::iter;
 
 use super::DecType;
 use crate::{
+    error::{Result, RuntimeError},
     parse::statement::{Block, Expression, LiteralExpr},
     run::{value::DecValue, Scope},
 };
-use anyhow::{bail, Result};
 
 impl Block {
     pub fn check_type(&self, _scope: &Scope) -> Result<DecType> {
@@ -32,15 +32,12 @@ impl Expression {
                     DecValue::Fn(func) => {
                         check_arg_types(func.args.iter().map(|arg| &arg.dectype), call_args)?;
                         func.return_type
-                    },
+                    }
                     DecValue::BuiltinFn { fntype, .. } => {
                         check_arg_types(fntype.arg_types.iter(), call_args)?;
                         *fntype.return_type
-                    },
-                    v => bail!(
-                        "mismatched types in function call expression: expected function, found `{}`",
-                        v.dectype()
-                    ),
+                    }
+                    v => return Err(RuntimeError::NonFunctionCall { found: v.dectype() }),
                 }
             }
             Expression::If(if_expr) => {
@@ -53,19 +50,19 @@ impl Expression {
                 for block in blocks_iter {
                     let block_type = block.check_type(scope)?;
                     if block_type != first_block_type {
-                        bail!("`if` branches have incompatible types: expected `{first_block_type}`, found `{block_type}`");
+                        bail_type_error!(first_block_type, block_type);
                     }
                 }
 
                 for condition in if_expr.branches.iter().map(|(expr, _)| expr) {
                     let condition_type = condition.check_type(scope)?;
                     if condition_type != DecType::Bool {
-                        bail!("mismatched types in condition of `if` branch: expected `bool`, found `{condition_type}`");
+                        bail_type_error!(DecType::Bool, condition_type);
                     }
                 }
 
                 if first_block_type == DecType::Void && if_expr.else_block.is_none() {
-                    bail!("`if` branches have incompatible types: expected `void` due to missing `else` block, found `{first_block_type}`");
+                    bail_type_error!(DecType::Void, first_block_type);
                 }
 
                 first_block_type
@@ -82,21 +79,16 @@ where
     CallArgs: Iterator<Item = Result<DecType>> + ExactSizeIterator,
 {
     if fn_args.len() != call_args.len() {
-        bail!(
-            "this function takes {} arguments but {} arguments were supplied",
-            fn_args.len(),
-            call_args.len()
-        );
+        return Err(RuntimeError::WrongNumArgs {
+            expected: fn_args.len(),
+            found: call_args.len(),
+        });
     }
 
     for (fn_arg_type, call_arg_type) in iter::zip(fn_args, call_args) {
         let call_arg_type = call_arg_type?;
         if fn_arg_type != &call_arg_type {
-            bail!(
-                "mismatched types in function call argument: expected `{}`, found `{}`",
-                fn_arg_type,
-                call_arg_type,
-            );
+            bail_type_error!(fn_arg_type.clone(), call_arg_type);
         }
     }
 

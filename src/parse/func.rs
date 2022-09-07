@@ -6,7 +6,7 @@ use super::{
 use crate::types::DecType;
 use nom::{
     bytes::complete::tag,
-    combinator::map,
+    combinator::{cut, map},
     error::{context, ContextError, ParseError},
     multi::separated_list0,
     sequence::{delimited, separated_pair},
@@ -25,11 +25,14 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
     let (s, _) = tag("fn")(s)?;
-    let (s, ident) = spaced1(identifier)(s)?;
-    let (s, args) = delimited(spaced0(tag("(")), fn_args, spaced0(tag(")")))(s)?;
-    let (s, _) = spaced0(tag("->"))(s)?;
-    let (s, return_type) = spaced0(dectype)(s)?;
-    let (s, block) = context("block of function", spaced0(block))(s)?;
+    let (s, ident) = cut(context("function name", spaced1(identifier)))(s)?;
+    let (s, args) = cut(context(
+        "function arguments",
+        delimited(spaced0(tag("(")), fn_args, spaced0(tag(")"))),
+    ))(s)?;
+    let (s, _) = cut(context("`->`", spaced0(tag("->"))))(s)?;
+    let (s, return_type) = cut(context("return type", spaced0(dectype)))(s)?;
+    let (s, block) = cut(context("block of function", spaced0(block)))(s)?;
     Ok((
         s,
         (
@@ -54,7 +57,11 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
     map(
-        separated_pair(identifier, spaced0(tag(":")), spaced0(dectype)),
+        separated_pair(
+            context("argument name", identifier),
+            cut(context("`:` separating argument name from type", spaced0(tag(":")))),
+            cut(context("argument type", spaced0(dectype))),
+        ),
         |(name, dectype)| FnArg { name, dectype },
     )(s)
 }

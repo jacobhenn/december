@@ -1,0 +1,9 @@
+fn main() -> void {
+    if false {
+        println("test");
+    } else kif true {
+        println("things");
+    } else {
+        println("stuff");
+    };
+}

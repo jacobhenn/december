@@ -3,6 +3,7 @@ pub mod value;
 
 use self::value::DecValue;
 use crate::{
+    error::{Result, RuntimeError},
     parse::{
         func::DecFn,
         statement::{Block, Expression, Identifier, LiteralExpr, Statement},
@@ -10,7 +11,6 @@ use crate::{
     },
     types::DecType,
 };
-use anyhow::{bail, Result};
 use builtins::BUILTINS;
 use std::collections::HashMap;
 
@@ -31,12 +31,8 @@ impl Scope {
                 self.evaluate_expr(e)?;
             }
             Statement::Definition(d) => {
-                if self.idents.contains_key(&d.name) {
-                    bail!("cannot redefine `{}`", &d.name);
-                } else {
-                    let value = self.evaluate_expr(&d.value)?;
-                    self.idents.insert(d.name.clone(), value);
-                }
+                let value = self.evaluate_expr(&d.value)?;
+                self.idents.insert(d.name.clone(), value);
             }
         }
 
@@ -49,7 +45,7 @@ impl Scope {
         } else if let Some(value) = BUILTINS.get(&i) {
             Ok(value.clone())
         } else {
-            bail!("could not find identifier `{i}` in this scope")
+            bail_ident_error!(i.clone());
         }
     }
 
@@ -109,10 +105,7 @@ pub fn run_func<'a>(f: &DecFn) -> Result<DecValue> {
     if f.return_type == DecType::Void {
         Ok(DecValue::Void)
     } else {
-        bail!(
-            "mismatched return type: expected `{}`, but implicitly returns `void`.",
-            f.return_type
-        )
+        bail_type_error!(DecType::Void, f.return_type.clone())
     }
 }
 
@@ -121,10 +114,10 @@ pub fn run(program: Program) -> Result<()> {
         if main.args.is_empty() && main.return_type == DecType::Void {
             run_func(main)?;
         } else {
-            bail!("mismatched types: main function must have type `fn() -> void`");
+            return Err(RuntimeError::MainWrongType);
         }
     } else {
-        bail!("program needs a main function");
+        return Err(RuntimeError::MissingMain);
     }
 
     Ok(())
