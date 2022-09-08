@@ -66,12 +66,42 @@ lazy_static! {
         },
     };
 
+    pub static ref INT_ADD: DecValue = DecValue::BuiltinFn {
+        fntype: FnType {
+            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
+            return_type: Box::new(DecType::Int),
+        },
+        func: |v| {
+            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
+                DecValue::Int(x + y)
+            } else {
+                unreachable!();
+            }
+        },
+    };
+
+    pub static ref INT_MOD: DecValue = DecValue::BuiltinFn {
+        fntype: FnType {
+            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
+            return_type: Box::new(DecType::Int),
+        },
+        func: |v| {
+            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
+                DecValue::Int(x % y)
+            } else {
+                unreachable!();
+            }
+        },
+    };
+
     pub static ref BUILTINS: HashMap<Identifier, DecValue> = {
         let mut m = HashMap::new();
         m.insert(Identifier::from("println"), PRINTLN.clone());
         m.insert(Identifier::from("print"), PRINT.clone());
         m.insert(Identifier::from("int2string"), INT2STRING.clone());
         m.insert(Identifier::from("float2string"), FLOAT2STRING.clone());
+        m.insert(Identifier::from("int_add"), INT_ADD.clone());
+        m.insert(Identifier::from("int_mod"), INT_MOD.clone());
         m
     };
 }

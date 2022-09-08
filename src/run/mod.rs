@@ -6,7 +6,7 @@ use crate::{
     error::{Result, RuntimeError},
     parse::{
         func::DecFn,
-        statement::{Block, Expression, Identifier, LiteralExpr, Statement},
+        statement::{Block, Expression, Identifier, LiteralExpr, Statement, IndexExpr, LoopExpr},
         Item, Program,
     },
     types::DecType,
@@ -34,6 +34,14 @@ impl Scope {
                 let value = self.evaluate_expr(&d.value)?;
                 self.idents.insert(d.name.clone(), value);
             }
+            Statement::Assignment(a) => {
+                let new_value = self.evaluate_expr(&a.value)?;
+                if let Some(var) = self.idents.get_mut(&a.name) {
+                    *var = new_value;
+                } else {
+                    bail_ident_error!(a.name.clone());
+                }
+            }
         }
 
         Ok(())
@@ -57,7 +65,7 @@ impl Scope {
     }
 
     pub fn evaluate_expr(&mut self, expr: &Expression) -> Result<DecValue> {
-        expr.check_type(self)?;
+        let expr_type = expr.check_type(self)?;
 
         match expr {
             Expression::Literal(l) => match l {
@@ -96,6 +104,33 @@ impl Scope {
                     self.evaluate_block(else_block)
                 } else {
                     Ok(DecValue::Void)
+                }
+            }
+            Expression::List(l) => {
+                let mut v = Vec::new();
+                for expr in &l.elements {
+                    v.push(self.evaluate_expr(&expr)?)
+                }
+                if let DecType::List(t) = expr_type {
+                    Ok(DecValue::List(*t, v))
+                } else {
+                    unreachable!("typecheck")
+                }
+            }
+            Expression::IndexExpr(IndexExpr { list, index }) => {
+                if let DecValue::List(.., list) = self.get_ident(list)? {
+                    if let DecValue::Int(i) = self.evaluate_expr(index)? {
+                        Ok(list[i as usize].clone())
+                    } else {
+                        unreachable!("typecheck");
+                    }
+                } else {
+                    unreachable!("typecheck");
+                }
+            }
+            Expression::Loop(LoopExpr { block }) => {
+                loop {
+                    self.evaluate_block(block)?;
                 }
             }
         }

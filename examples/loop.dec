@@ -1,0 +1,9 @@
+fn main() -> void {
+    x := [56, 48, 39];
+    i := 0;
+    loop {
+        println(int2string(x[i]));
+        i = int_add(i, 1);
+        i = int_mod(i, 3);
+    };
+}

@@ -1,0 +1,6 @@
+fn main() -> void {
+    x := [56, 48, 39];
+    println(int2string(x[0]));
+    println(int2string(x[1]));
+    println(int2string(x[2]));
+}

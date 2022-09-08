@@ -3,7 +3,7 @@ use std::iter;
 use super::DecType;
 use crate::{
     error::{Result, RuntimeError},
-    parse::statement::{Block, Expression, LiteralExpr},
+    parse::statement::{Block, Expression, LiteralExpr, ListExpr, IndexExpr},
     run::{value::DecValue, Scope},
 };
 
@@ -69,6 +69,34 @@ impl Expression {
                 }
 
                 first_block_type
+            }
+            Expression::List(ListExpr { elements }) => {
+                if elements.is_empty() {
+                    return Err(RuntimeError::EmptyList);
+                }
+                let mut elements_iter = elements.iter();
+                let first_element_type = elements_iter.next().unwrap().check_type(scope)?;
+                for other_element in elements_iter {
+                    let other_element_type = other_element.check_type(scope)?;
+                    if other_element_type != first_element_type {
+                        bail_type_error!(first_element_type, other_element_type);
+                    }
+                }
+                DecType::List(Box::new(first_element_type))
+            }
+            Expression::IndexExpr(IndexExpr { list, index }) => {
+                match scope.get_ident(list)?.dectype() {
+                    DecType::List(element_type) => match index.check_type(scope)? {
+                        DecType::Int => {
+                            *element_type
+                        }
+                        other => bail_type_error!(DecType::Int, other),
+                    }
+                    other => return Err(RuntimeError::NonListIndex { found: other }),
+                }
+            }
+            Expression::Loop(_) => {
+                DecType::Never
             }
         };
 

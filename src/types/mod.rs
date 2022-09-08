@@ -9,6 +9,8 @@ pub enum DecType {
     Bool,
     Int,
     Float,
+    List(Box<DecType>),
+    Never,
 
     // a type with only one member, `void`.
     Void,
@@ -33,6 +35,8 @@ impl Display for DecType {
             Self::Bool => f.write_str("bool"),
             Self::Float => f.write_str("float"),
             Self::Int => f.write_str("int"),
+            Self::List(t) => write!(f, "[{t}]"),
+            Self::Never => f.write_str("!"),
         }
     }
 }

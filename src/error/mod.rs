@@ -7,18 +7,22 @@ pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 #[derive(Error, Debug)]
 pub enum RuntimeError {
-    #[error("mismatched types: expected `{expected}`, found `{found}`")]
+    #[error("E0: mismatched types: expected `{expected}`, found `{found}`")]
     MismatchedTypes { expected: DecType, found: DecType },
-    #[error("could not find `{ident}` in this scope")]
+    #[error("E1: could not find `{ident}` in this scope")]
     IdentNotFound { ident: Identifier },
-    #[error("main function has wrong type: expected `fn() -> void`")]
+    #[error("E2: main function has wrong type: expected `fn() -> void`")]
     MainWrongType,
-    #[error("program needs a `main` function")]
+    #[error("E3: program needs a `main` function")]
     MissingMain,
-    #[error("mismatched types in function call expression: expected function, found `{found}`")]
+    #[error("E4: mismatched types in function call expression: expected function, found `{found}`")]
     NonFunctionCall { found: DecType },
-    #[error("wrong number of arguments in function call: expected {expected}, found {found}")]
+    #[error("E5: wrong number of arguments in function call: expected {expected}, found {found}")]
     WrongNumArgs { expected: usize, found: usize },
+    #[error("E6: list declarations may not be empty")]
+    EmptyList,
+    #[error("E7: mismatched types in list index expression: expected list, found `{found}`")]
+    NonListIndex { found: DecType },
 }
 
 /// (expr) -> !

@@ -1,0 +1,4 @@
+fn main() -> void {
+    x := 5;
+    println(int2string(int_add(7, x)));
+}
