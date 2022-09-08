@@ -6,7 +6,7 @@ mod parse;
 mod run;
 mod types;
 
-use crate::{args::Args, error::parse::convert_error};
+use crate::args::Args;
 use anyhow::{Context, Result};
 use nom::{error::VerboseError, Err};
 use std::{
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
             }
         }
         Err(Err::Error(e) | Err::Failure(e)) => {
-            println!("{}", convert_error(contents.as_str(), &e));
+            println!("{}", error::parse::contextualize(contents.as_str(), &e));
         }
         _ => (),
     }

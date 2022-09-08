@@ -61,8 +61,11 @@ impl Scope {
 
         match expr {
             Expression::Literal(l) => match l {
-                LiteralExpr::StringLiteral(s) => Ok(DecValue::String(s.to_string())),
-                LiteralExpr::BoolLiteral(b) => Ok(DecValue::Bool(*b)),
+                LiteralExpr::String(s) => Ok(DecValue::String(s.to_string())),
+                LiteralExpr::Bool(b) => Ok(DecValue::Bool(*b)),
+                LiteralExpr::Int(i) => Ok(DecValue::Int(*i)),
+                LiteralExpr::Float(f) => Ok(DecValue::Float(*f)),
+                LiteralExpr::Void => Ok(DecValue::Void),
             },
             Expression::Identifier(i) => self.get_ident(i),
             Expression::FnCall(call) => match self.get_ident(&call.func)? {

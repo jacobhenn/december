@@ -3,9 +3,6 @@ pub mod statement;
 pub mod string;
 pub mod types;
 
-#[cfg(test)]
-mod tests;
-
 use std::collections::HashMap;
 
 use func::decfn;

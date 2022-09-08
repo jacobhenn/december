@@ -1,12 +1,14 @@
 use super::{spaced0, spaced1, string};
+use crate::error::RuntimeError;
+use assert_matches::assert_matches;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, multispace1},
-    combinator::{cut, map, opt, recognize},
-    error::{context, ContextError, ParseError},
-    multi::{many0, many0_count, separated_list0},
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
+    character::complete::{alpha1, alphanumeric1, char, multispace1, one_of},
+    combinator::{cut, fail, map, opt, recognize},
+    error::{context, ContextError, ParseError, VerboseError},
+    multi::{many0, many0_count, separated_list0, many1},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use std::fmt::Display;
@@ -74,8 +76,11 @@ where
 
 #[derive(Debug, Clone)]
 pub enum LiteralExpr {
-    StringLiteral(String),
-    BoolLiteral(bool),
+    String(String),
+    Bool(bool),
+    Int(i128),
+    Float(f64),
+    Void,
 }
 
 pub fn literal_expr<'a, E>(s: &'a str) -> IResult<&'a str, LiteralExpr, E>
@@ -83,9 +88,68 @@ where
     E: ParseError<&'a str> + ContextError<&'a str>,
 {
     alt((
-        map(string::parse, LiteralExpr::StringLiteral),
-        map(bool, LiteralExpr::BoolLiteral),
+        map(tag("void"), |_| LiteralExpr::Void),
+        map(float, LiteralExpr::Float),
+        map(int, LiteralExpr::Int),
+        map(bool, LiteralExpr::Bool),
+        map(string::parse, LiteralExpr::String),
     ))(s)
+}
+
+macro_rules! digit {
+    () => {
+        one_of("0123456789")
+    };
+}
+
+pub fn int<'a, E>(s: &'a str) -> IResult<&'a str, i128, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str>,
+{
+    let (s, n) = recognize(preceded(alt((digit!(), char('-'))), many0(digit!())))(s)?;
+    match str::parse::<i128>(n) {
+        Ok(n) => Ok((s, n)),
+        Err(_) => cut(context(
+            "integer literal to be between −2^127 and 2^127-1",
+            fail,
+        ))(s),
+    }
+}
+
+#[test]
+fn test_int() {
+    assert_eq!(int::<VerboseError<&str>>("123456"), Ok(("", 123456)));
+    assert!(int::<VerboseError<&str>>("foo").is_err());
+}
+
+pub fn float<'a, E>(s: &'a str) -> IResult<&'a str, f64, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str>,
+{
+    let (s, n) = recognize(tuple((
+        opt(char('-')),
+        many1(digit!()),
+        char('.'),
+        many1(digit!()),
+        opt(preceded(char('e'), many1(digit!()))),
+    )))(s)?;
+    match str::parse::<f64>(n) {
+        Ok(n) => Ok((s, n)),
+        Err(_) => cut(context(
+            "floating point literal to be between -2147483648 and 2147483647",
+            fail,
+        ))(s),
+    }
+}
+
+#[test]
+fn test_float() {
+    assert_eq!(
+        float::<VerboseError<&str>>("-123.456e7foo"),
+        Ok(("foo", -123.456e7))
+    );
+    assert_matches!(float::<VerboseError<&str>>(".5"), Err(_));
+    assert_matches!(float::<VerboseError<&str>>("5."), Err(_));
 }
 
 pub fn bool<'a, E>(s: &'a str) -> IResult<&'a str, bool, E>

@@ -7,6 +7,8 @@ pub enum DecType {
     Fn(FnType),
     String,
     Bool,
+    Int,
+    Float,
 
     // a type with only one member, `void`.
     Void,
@@ -29,6 +31,8 @@ impl Display for DecType {
             Self::String => f.write_str("String"),
             Self::Void => f.write_str("void"),
             Self::Bool => f.write_str("bool"),
+            Self::Float => f.write_str("float"),
+            Self::Int => f.write_str("int"),
         }
     }
 }

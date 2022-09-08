@@ -22,6 +22,7 @@ lazy_static! {
             }
         },
     };
+
     pub static ref PRINT: DecValue = DecValue::BuiltinFn {
         fntype: FnType {
             arg_types: vec![DecType::String].into_boxed_slice(),
@@ -36,10 +37,41 @@ lazy_static! {
             }
         },
     };
+
+    pub static ref INT2STRING: DecValue = DecValue::BuiltinFn {
+        fntype: FnType {
+            arg_types: vec![DecType::Int].into_boxed_slice(),
+            return_type: Box::new(DecType::String),
+        },
+        func: |v| {
+            if let DecValue::Int(i) = &v[0] {
+                DecValue::String(format!("{i}"))
+            } else {
+                unreachable!();
+            }
+        },
+    };
+
+    pub static ref FLOAT2STRING: DecValue = DecValue::BuiltinFn {
+        fntype: FnType {
+            arg_types: vec![DecType::Float].into_boxed_slice(),
+            return_type: Box::new(DecType::String),
+        },
+        func: |v| {
+            if let DecValue::Float(i) = &v[0] {
+                DecValue::String(format!("{i}"))
+            } else {
+                unreachable!();
+            }
+        },
+    };
+
     pub static ref BUILTINS: HashMap<Identifier, DecValue> = {
         let mut m = HashMap::new();
         m.insert(Identifier::from("println"), PRINTLN.clone());
         m.insert(Identifier::from("print"), PRINT.clone());
+        m.insert(Identifier::from("int2string"), INT2STRING.clone());
+        m.insert(Identifier::from("float2string"), FLOAT2STRING.clone());
         m
     };
 }

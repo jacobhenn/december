@@ -12,6 +12,8 @@ pub enum DecValue {
     },
     String(String),
     Bool(bool),
+    Int(i128),
+    Float(f64),
     Void,
 }
 
@@ -28,6 +30,8 @@ impl DecValue {
             Self::String(_) => DecType::String,
             Self::Bool(_) => DecType::Bool,
             Self::Void => DecType::Void,
+            Self::Int(_) => DecType::Int,
+            Self::Float(_) => DecType::Float,
         }
     }
 }

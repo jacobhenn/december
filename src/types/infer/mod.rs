@@ -21,8 +21,11 @@ impl Expression {
     pub fn check_type(&self, scope: &Scope) -> Result<DecType> {
         let ty = match self {
             Expression::Literal(l) => match l {
-                LiteralExpr::StringLiteral(_) => DecType::String,
-                LiteralExpr::BoolLiteral(_) => DecType::Bool,
+                LiteralExpr::String(_) => DecType::String,
+                LiteralExpr::Bool(_) => DecType::Bool,
+                LiteralExpr::Int(_) => DecType::Int,
+                LiteralExpr::Float(_) => DecType::Float,
+                LiteralExpr::Void => DecType::Void,
             },
             Expression::Identifier(i) => scope.get_ident(i)?.dectype(),
             Expression::FnCall(fn_call) => {
