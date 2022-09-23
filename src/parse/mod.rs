@@ -17,6 +17,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use self::statement::Identifier;
 
+/// a `T` along with its position in the input stream
 pub struct Located<'a, T, Position>
 where
     Position: Deref<Target = &'a str>,

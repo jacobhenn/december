@@ -1,3 +1,5 @@
+//! tools for dealing with parsing errors
+
 use nom::{
     error::{VerboseError, VerboseErrorKind},
     Offset,

@@ -14,18 +14,23 @@ use crate::{
 use builtins::BUILTINS;
 use std::{collections::HashMap, iter};
 
+/// a stack of maps of identifiers to values. each time a new scope is entered, a new map is pushed
+/// to the stack.
 pub struct Scope {
     /// a stack of scopes, innermost last.
     scopes: Vec<HashMap<Identifier, DecValue>>,
 }
 
 impl Scope {
+    /// create a scope consisting of a single empty map
     pub fn new() -> Self {
         Self {
             scopes: vec![HashMap::new()],
         }
     }
 
+    /// get a reference to the vaule assigned to the given identifier in the inner*most* scope.
+    /// traverse the current scope from most local to global until the identifier is found.
     pub fn get(&self, ident: &Identifier) -> Result<&DecValue> {
         for scope in &self.scopes {
             if let Some(val) = scope.get(ident) {
@@ -40,6 +45,9 @@ impl Scope {
         bail_ident_error!(ident.clone())
     }
 
+    /// get a mutable reference to the value assigned to the given identifier in the inner*most*
+    /// scope. does not return `Ok` if the identifier references a function or other item for
+    /// which it would not make sense to mutate.
     pub fn get_mut(&mut self, ident: &Identifier) -> Result<&mut DecValue> {
         for scope in &mut self.scopes {
             if let Some(val) = scope.get_mut(ident) {
@@ -54,6 +62,7 @@ impl Scope {
         bail_ident_error!(ident.clone())
     }
 
+    /// define the given identifier to be the given value in the innermost scope.
     pub fn insert(&mut self, ident: Identifier, value: DecValue) {
         self.scopes
             .last_mut()
@@ -61,6 +70,7 @@ impl Scope {
             .insert(ident, value);
     }
 
+    /// evaluate a statement and discard the result
     pub fn run_statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
             Statement::Expression(e) => {
@@ -80,6 +90,8 @@ impl Scope {
         Ok(())
     }
 
+    /// create a new scope, evaluate all the statements of the given block in order, and return
+    /// either the tail expression or `void`.
     pub fn evaluate_block(&mut self, block: &Block) -> Result<DecValue> {
         self.scopes.push(HashMap::new());
 
@@ -97,6 +109,7 @@ impl Scope {
         res
     }
 
+    /// find the value of the given expression in the current scope
     pub fn evaluate_expr(&mut self, expr: &Expression) -> Result<DecValue> {
         let expr_type = expr.check_type(self)?;
 
@@ -171,6 +184,8 @@ impl Scope {
         }
     }
 
+    /// bring the given values for the given arguments into scope and then evaluate the block of
+    /// the given function in a new scope.
     pub fn run_func<Z>(&mut self, f: &DecFn, args: Z) -> Result<DecValue>
     where
         Z: Iterator<Item = (Identifier, DecValue)>,
@@ -186,6 +201,7 @@ impl Scope {
         res
     }
 
+    /// bring the value of the given item into the current scope under the given name
     pub fn setup_item(&mut self, (ident, item): (Identifier, Item)) {
         match item {
             Item::Fn(f) => self.insert(ident, DecValue::Fn(f)),
@@ -193,6 +209,7 @@ impl Scope {
     }
 }
 
+/// find the given program's `main` function and run it
 pub fn program(program: Program) -> Result<()> {
     let mut scope = Scope::new();
     for item in program.items {

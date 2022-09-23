@@ -20,6 +20,7 @@ pub enum DecValue {
 }
 
 impl DecValue {
+    /// get the type of the given value
     pub fn dectype(&self) -> DecType {
         match self {
             Self::Fn(DecFn {

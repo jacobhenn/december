@@ -1,10 +1,13 @@
-#[macro_use]
-mod error;
+//! an interpreter for December, an imperative, strongly-typed programming language that i am
+//! making for fun.
 
-mod args;
-mod parse;
-mod run;
-mod types;
+#[macro_use]
+pub mod error;
+
+pub mod args;
+pub mod parse;
+pub mod run;
+pub mod types;
 
 use crate::args::Args;
 use anyhow::{Context, Result};

@@ -1,0 +1,7 @@
+fn main() -> void {
+    {
+        int_add := 5;
+    };
+    
+    println(int_add);
+}
