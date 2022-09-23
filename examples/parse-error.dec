@@ -1,7 +1,7 @@
 fn main() -> void {
     if false {
         println("test");
-    } else kif true {
+    } else if true {
         println("things");
     } else {
         println("stuff");

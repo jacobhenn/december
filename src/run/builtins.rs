@@ -22,7 +22,6 @@ lazy_static! {
             }
         },
     };
-
     pub static ref PRINT: DecValue = DecValue::BuiltinFn {
         fntype: FnType {
             arg_types: vec![DecType::String].into_boxed_slice(),
@@ -37,7 +36,6 @@ lazy_static! {
             }
         },
     };
-
     pub static ref INT2STRING: DecValue = DecValue::BuiltinFn {
         fntype: FnType {
             arg_types: vec![DecType::Int].into_boxed_slice(),
@@ -51,7 +49,6 @@ lazy_static! {
             }
         },
     };
-
     pub static ref FLOAT2STRING: DecValue = DecValue::BuiltinFn {
         fntype: FnType {
             arg_types: vec![DecType::Float].into_boxed_slice(),
@@ -65,7 +62,6 @@ lazy_static! {
             }
         },
     };
-
     pub static ref INT_ADD: DecValue = DecValue::BuiltinFn {
         fntype: FnType {
             arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
@@ -79,7 +75,6 @@ lazy_static! {
             }
         },
     };
-
     pub static ref INT_MOD: DecValue = DecValue::BuiltinFn {
         fntype: FnType {
             arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
@@ -94,6 +89,20 @@ lazy_static! {
         },
     };
 
+    pub static ref INT_MUL: DecValue = DecValue::BuiltinFn {
+        fntype: FnType {
+            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
+            return_type: Box::new(DecType::Int),
+        },
+        func: |v| {
+            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
+                DecValue::Int(x * y)
+            } else {
+                unreachable!();
+            }
+        },
+    };
+
     pub static ref BUILTINS: HashMap<Identifier, DecValue> = {
         let mut m = HashMap::new();
         m.insert(Identifier::from("println"), PRINTLN.clone());
@@ -102,6 +111,7 @@ lazy_static! {
         m.insert(Identifier::from("float2string"), FLOAT2STRING.clone());
         m.insert(Identifier::from("int_add"), INT_ADD.clone());
         m.insert(Identifier::from("int_mod"), INT_MOD.clone());
+        m.insert(Identifier::from("int_mul"), INT_MUL.clone());
         m
     };
 }

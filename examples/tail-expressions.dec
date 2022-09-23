@@ -1,0 +1,20 @@
+fn main() -> void {
+    println(
+        if false {
+            "uhh..."
+        } else if false {
+            println("gronk");
+            ""
+        } else {
+            "rhombus"
+        }
+    );
+    
+    if false {
+        println("whoops");
+    };
+
+    if true {
+        println("yay");
+    }
+}

@@ -59,7 +59,10 @@ where
     map(
         separated_pair(
             context("argument name", identifier),
-            cut(context("`:` separating argument name from type", spaced0(tag(":")))),
+            cut(context(
+                "`:` separating argument name from type",
+                spaced0(tag(":")),
+            )),
             cut(context("argument type", spaced0(dectype))),
         ),
         |(name, dectype)| FnArg { name, dectype },

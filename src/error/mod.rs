@@ -5,6 +5,7 @@ use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Error, Debug)]
 pub enum RuntimeError {
     #[error("E0: mismatched types: expected `{expected}`, found `{found}`")]
@@ -15,7 +16,9 @@ pub enum RuntimeError {
     MainWrongType,
     #[error("E3: program needs a `main` function")]
     MissingMain,
-    #[error("E4: mismatched types in function call expression: expected function, found `{found}`")]
+    #[error(
+        "E4: mismatched types in function call expression: expected function, found `{found}`"
+    )]
     NonFunctionCall { found: DecType },
     #[error("E5: wrong number of arguments in function call: expected {expected}, found {found}")]
     WrongNumArgs { expected: usize, found: usize },
@@ -23,6 +26,10 @@ pub enum RuntimeError {
     EmptyList,
     #[error("E7: mismatched types in list index expression: expected list, found `{found}`")]
     NonListIndex { found: DecType },
+    #[error("E8: cannot mutate a builtin")]
+    ImmutBuiltin,
+    #[error("E9: {} is an invalid list index", _0)]
+    BadIdx(i128),
 }
 
 /// (expr) -> !
@@ -30,9 +37,7 @@ pub enum RuntimeError {
 /// return an error that the first argument could not be found in the current scope.
 macro_rules! bail_ident_error {
     ($ident:expr) => {
-        return Err(crate::error::RuntimeError::IdentNotFound {
-            ident: $ident
-        })
+        return Err(crate::error::RuntimeError::IdentNotFound { ident: $ident })
     };
 }
 

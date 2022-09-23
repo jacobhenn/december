@@ -1,0 +1,9 @@
+fn main() -> void {
+    x := "Hello, World!";
+    {
+        x = "CUBE";
+        x := "RHOMBUS";
+        println(x);
+    };
+    println(x);
+}

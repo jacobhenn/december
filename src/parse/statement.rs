@@ -14,6 +14,7 @@ use std::fmt::Display;
 #[derive(Debug, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>,
+    pub tail: Option<Box<Expression>>,
 }
 
 pub fn block<'a, E>(s: &'a str) -> IResult<&'a str, Block, E>
@@ -23,10 +24,16 @@ where
     map(
         delimited(
             tag("{"),
-            many0(spaced0(statement)),
-            context("end of block", spaced0(tag("}"))),
+            cut(context(
+                "body of block",
+                tuple((many0(spaced0(statement)), opt(spaced0(expression)))),
+            )),
+            cut(context("end of block", spaced0(tag("}")))),
         ),
-        |statements| Block { statements },
+        |(statements, tail)| Block {
+            statements,
+            tail: tail.map(Box::new),
+        },
     )(s)
 }
 
@@ -66,22 +73,32 @@ pub enum Expression {
     Loop(LoopExpr),
     List(ListExpr),
     IndexExpr(IndexExpr),
+    Block(Block),
 }
 
 pub fn expression<'a, E>(s: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
-    alt((
+    let (s, x) = alt((
         map(if_expr, Expression::If),
         map(loop_expr, Expression::Loop),
         map(list_expr, Expression::List),
+        map(block, Expression::Block),
         map(index_expr, Expression::IndexExpr),
         map(fn_call_expr, Expression::FnCall),
         map(literal_expr, Expression::Literal),
         map(identifier, Expression::Identifier),
-        // operator_expr,
-    ))(s)
+    ))(s)?;
+    if let Ok((s, op)) = spaced0::<_, _, E>(binop)(s) {
+        let (s, y) = cut(context(
+            "second argument of binary operator",
+            spaced0(expression),
+        ))(s)?;
+        Ok((s, build_binop_expr(op, x, y)))
+    } else {
+        Ok((s, x))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -182,7 +199,7 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn new(name: String) -> Self {
+    pub const fn new(name: String) -> Self {
         Self { name }
     }
 }
@@ -222,7 +239,7 @@ where
 #[derive(Debug, Clone)]
 pub struct FnCallExpr {
     pub func: Identifier,
-    pub args: Vec<Expression>,
+    pub args: Box<[Expression]>,
 }
 
 pub fn fn_call_expr<'a, E>(s: &'a str) -> IResult<&'a str, FnCallExpr, E>
@@ -241,7 +258,13 @@ where
         cut(context("closing `)` of call expression", spaced0(tag(")")))),
     )(s)?;
 
-    Ok((s, FnCallExpr { func, args }))
+    Ok((
+        s,
+        FnCallExpr {
+            func,
+            args: args.into_boxed_slice(),
+        },
+    ))
 }
 
 #[test]
@@ -436,44 +459,29 @@ where
     )(s)
 }
 
-pub fn operator_expr<'a, E>(s: &'a str) -> IResult<&'a str, Expression, E>
+pub fn binop<'a, E>(s: &'a str) -> IResult<&'a str, &'a str, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
-    alt((
-        map(
-            separated_pair(
-                expression,
-                spaced0(char('+')),
-                cut(context(
-                    "expression on right side of `+` operator",
-                    spaced0(expression),
-                )),
-            ),
-            |(x, y)| {
-                Expression::FnCall(FnCallExpr {
-                    func: Identifier::from("int_add"),
-                    args: vec![x, y],
-                })
-            },
-        ),
-        map(
-            separated_pair(
-                expression,
-                spaced0(char('%')),
-                cut(context(
-                    "expression on right side of `%` operator",
-                    spaced0(expression),
-                )),
-            ),
-            |(x, y)| {
-                Expression::FnCall(FnCallExpr {
-                    func: Identifier::from("int_mod"),
-                    args: vec![x, y],
-                })
-            },
-        ),
-    ))(s)
+    alt((tag("+"), tag("%"), tag("*")))(s)
+}
+
+fn build_binop_expr(op: &str, x: Expression, y: Expression) -> Expression {
+    match op {
+        "+" => Expression::FnCall(FnCallExpr {
+            func: Identifier::from("int_add"),
+            args: vec![x, y].into_boxed_slice(),
+        }),
+        "*" => Expression::FnCall(FnCallExpr {
+            func: Identifier::from("int_mul"),
+            args: vec![x, y].into_boxed_slice(),
+        }),
+        "%" => Expression::FnCall(FnCallExpr {
+            func: Identifier::from("int_mod"),
+            args: vec![x, y].into_boxed_slice(),
+        }),
+        _ => unreachable!(),
+    }
 }
 
 #[test]
@@ -481,7 +489,7 @@ fn test_operator_expr() {
     use assert_matches::assert_matches;
     use nom::error::VerboseError;
 
-    assert_matches!(operator_expr::<VerboseError<&str>>("x+y"), Ok(_));
+    assert_matches!(expression::<VerboseError<&str>>("x+y"), Ok(_));
     assert_matches!(expression::<VerboseError<&str>>("x  %3"), Ok(_));
-    assert_matches!(operator_expr::<VerboseError<&str>>("x ++ 3"), Err(_));
+    assert_matches!(expression::<VerboseError<&str>>("x ++ 3"), Err(_));
 }

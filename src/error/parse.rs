@@ -6,7 +6,10 @@ use std::fmt::Write;
 
 /// adapted for my purposes from
 /// [`nom::error::convert_error`](https://docs.rs/nom/7.1.1/src/nom/error.rs.html#251-360)
-pub fn contextualize<I: core::ops::Deref<Target = str>>(input: I, e: &VerboseError<I>) -> String {
+pub fn contextualize<I>(input: I, e: &VerboseError<I>) -> String
+where
+    I: core::ops::Deref<Target = str>,
+{
     let mut result = String::new();
 
     if let Some((substring, VerboseErrorKind::Context(c))) = e

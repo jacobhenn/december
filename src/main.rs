@@ -25,7 +25,7 @@ fn main() -> Result<()> {
 
     match parse::program::<VerboseError<&str>>(&contents) {
         Ok((_, program)) => {
-            if let Err(e) = run::program(&program) {
+            if let Err(e) = run::program(program) {
                 println!("Runtime error: {e:#}");
             }
         }

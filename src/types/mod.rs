@@ -9,7 +9,7 @@ pub enum DecType {
     Bool,
     Int,
     Float,
-    List(Box<DecType>),
+    List(Box<Self>),
     Never,
 
     // a type with only one member, `void`.

@@ -1,4 +1,3 @@
-
 use crate::types::DecType;
 use nom::{
     branch::alt,
@@ -6,7 +5,8 @@ use nom::{
     character::complete::char,
     combinator::map,
     error::{ContextError, ParseError},
-    IResult, sequence::delimited,
+    sequence::delimited,
+    IResult,
 };
 
 pub fn void<'a, E>(s: &'a str) -> IResult<&'a str, DecType, E>
@@ -34,7 +34,9 @@ pub fn list<'a, E>(s: &'a str) -> IResult<&'a str, DecType, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str>,
 {
-    map(delimited(char('['), dectype, char(']')), |s| DecType::List(Box::new(s)))(s)
+    map(delimited(char('['), dectype, char(']')), |s| {
+        DecType::List(Box::new(s))
+    })(s)
 }
 
 #[test]
@@ -46,9 +48,16 @@ fn test_list() {
     assert_matches!(dectype::<VerboseError<&str>>("[[[[[bool]]]]]"), Ok(_));
 }
 
+pub fn int<'a, E>(s: &'a str) -> IResult<&'a str, DecType, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str>,
+{
+    map(tag("int"), |_| DecType::Int)(s)
+}
+
 pub fn dectype<'a, E>(s: &'a str) -> IResult<&'a str, DecType, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str>,
 {
-    alt((void, string, bool, list))(s)
+    alt((void, string, bool, int, list))(s)
 }

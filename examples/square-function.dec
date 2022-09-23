@@ -1,9 +1,7 @@
-fn foo() -> void {
-    println("foo");
+fn square(x: int) -> int {
+    x * x
 }
 
 fn main() -> void {
-    x := foo();
-    y := println("Hello, world");
-    foo();
+    println(int2string(square(5)));
 }

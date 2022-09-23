@@ -3,14 +3,13 @@ use std::iter;
 use super::DecType;
 use crate::{
     error::{Result, RuntimeError},
-    parse::statement::{Block, Expression, LiteralExpr, ListExpr, IndexExpr},
+    parse::statement::{Block, Expression, IndexExpr, ListExpr, LiteralExpr},
     run::{value::DecValue, Scope},
 };
 
 impl Block {
-    pub fn check_type(&self, _scope: &Scope) -> Result<DecType> {
-        // for now, blocks are only capable of returning `void`
-        Ok(DecType::Void)
+    pub fn check_type(&self, scope: &Scope) -> Result<DecType> {
+        self.tail.as_ref().map_or(Ok(DecType::Void), |tail| tail.check_type(scope))
     }
 }
 
@@ -27,18 +26,18 @@ impl Expression {
                 LiteralExpr::Float(_) => DecType::Float,
                 LiteralExpr::Void => DecType::Void,
             },
-            Expression::Identifier(i) => scope.get_ident(i)?.dectype(),
+            Expression::Identifier(i) => scope.get(i)?.dectype(),
             Expression::FnCall(fn_call) => {
-                let func = scope.get_ident(&fn_call.func)?;
+                let func = scope.get(&fn_call.func)?;
                 let call_args = fn_call.args.iter().map(|arg| arg.check_type(scope));
                 match func {
                     DecValue::Fn(func) => {
                         check_arg_types(func.args.iter().map(|arg| &arg.dectype), call_args)?;
-                        func.return_type
+                        func.return_type.clone()
                     }
                     DecValue::BuiltinFn { fntype, .. } => {
                         check_arg_types(fntype.arg_types.iter(), call_args)?;
-                        *fntype.return_type
+                        *fntype.return_type.clone()
                     }
                     v => return Err(RuntimeError::NonFunctionCall { found: v.dectype() }),
                 }
@@ -64,7 +63,7 @@ impl Expression {
                     }
                 }
 
-                if first_block_type == DecType::Void && if_expr.else_block.is_none() {
+                if if_expr.else_block.is_none() && first_block_type != DecType::Void {
                     bail_type_error!(DecType::Void, first_block_type);
                 }
 
@@ -85,18 +84,21 @@ impl Expression {
                 DecType::List(Box::new(first_element_type))
             }
             Expression::IndexExpr(IndexExpr { list, index }) => {
-                match scope.get_ident(list)?.dectype() {
+                match scope.get(list)?.dectype() {
                     DecType::List(element_type) => match index.check_type(scope)? {
-                        DecType::Int => {
-                            *element_type
-                        }
+                        DecType::Int => *element_type,
                         other => bail_type_error!(DecType::Int, other),
-                    }
+                    },
                     other => return Err(RuntimeError::NonListIndex { found: other }),
                 }
             }
-            Expression::Loop(_) => {
-                DecType::Never
+            Expression::Loop(_) => DecType::Never,
+            Expression::Block(b) => {
+                if let Some(tail) = &b.tail {
+                    tail.check_type(scope)?
+                } else {
+                    DecType::Void
+                }
             }
         };
 

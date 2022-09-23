@@ -3,6 +3,7 @@ use crate::{
     types::{DecType, FnType},
 };
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone)]
 pub enum DecValue {
     Fn(DecFn),
