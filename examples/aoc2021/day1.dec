@@ -1,0 +1,13 @@
+fn main() -> void {
+    res := 0;
+    prev := 0;
+    loop {
+        next := string2int(getln());
+        if int_greater(next, prev) {
+            res = res + 1;
+        };
+        prev = next;
+
+        println(int2string(res));
+    };
+}
