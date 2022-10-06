@@ -28,10 +28,10 @@ macro_rules! decfn {
                     arg_types: arg_types.into_boxed_slice(),
                     return_type: Box::new(DecType::$rettype),
                 },
-                func: |mut v| {
+                func: |argv| {
+                    let mut argit = argv.into_iter();
                     $(
-                        // TODO: this is disgusting
-                        let $argid = if let DecValue::$argty($argid) = v.remove(0) {
+                        let $argid = if let Some(DecValue::$argty($argid)) = argit.next() {
                             $argid
                         } else {
                             unreachable!("mismatched types in call of builtin function")
