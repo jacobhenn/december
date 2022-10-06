@@ -1,4 +1,4 @@
 fn main() -> void {
     x := "Hello, world!";
-    println(x);
+    std::println(x);
 }

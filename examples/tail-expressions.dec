@@ -1,9 +1,9 @@
 fn main() -> void {
-    println(
+    std::println(
         if false {
             "uhh..."
         } else if false {
-            println("gronk");
+            std::println("gronk");
             ""
         } else {
             "rhombus"
@@ -11,10 +11,10 @@ fn main() -> void {
     );
     
     if false {
-        println("whoops");
+        std::println("whoops");
     };
 
     if true {
-        println("yay");
+        std::println("yay");
     }
 }

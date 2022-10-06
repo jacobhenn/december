@@ -1,6 +1,6 @@
 pub mod parse;
 
-use crate::{parse::statement::Identifier, types::DecType};
+use crate::{parse::Item, types::DecType};
 use thiserror::Error;
 
 /// an alias for `Result<T, RuntimeError>`
@@ -10,47 +10,52 @@ pub type Result<T> = std::result::Result<T, RuntimeError>;
 #[derive(Error, Debug)]
 /// an error that happened after parsing was successful
 pub enum RuntimeError {
-    #[error("E0: mismatched types: expected `{expected}`, found `{found}`")]
-    /// E0: mismatched types: expected `{expected}`, found `{found}`
+    #[error("E00: mismatched types: expected `{expected}`, found `{found}`")]
     MismatchedTypes { expected: DecType, found: DecType },
 
-    #[error("E1: could not find `{ident}` in this scope")]
-    /// E1: could not find `{ident}` in this scope
-    IdentNotFound { ident: Identifier },
+    #[error("E01: could not find `{ident}` in this scope")]
+    IdentNotFound { ident: String },
 
-    #[error("E2: main function has wrong type: expected `fn() -> void`")]
-    /// E2: main function has wrong type: expected `fn() -> void`
+    #[error("E02: main function has wrong type: expected `fn() -> void`")]
     MainWrongType,
 
-    #[error("E3: program needs a `main` function")]
-    /// E3: program needs a `main` function
+    #[error("E03: program needs a `main` function")]
     MissingMain,
 
     #[error(
-        "E4: mismatched types in function call expression: expected function, found `{found}`"
+        "E04: mismatched types in function call expression: expected function, found `{found}`"
     )]
-    /// E4: mismatched types in function call expression: expected function, found `{found}`
     NonFunctionCall { found: DecType },
 
-    #[error("E5: wrong number of arguments in function call: expected {expected}, found {found}")]
-    /// E5: wrong number of arguments in function call: expected {expected}, found {found}
+    #[error("E05: wrong number of arguments in function call: expected {expected}, found {found}")]
     WrongNumArgs { expected: usize, found: usize },
 
-    #[error("E6: list declarations may not be empty")]
-    /// E6: list declarations may not be empty
+    #[error("E06: list declarations may not be empty")]
     EmptyList,
 
-    #[error("E7: mismatched types in list index expression: expected list, found `{found}`")]
-    /// E7: mismatched types in list index expression: expected list, found `{found}`
+    #[error("E07: mismatched types in list index expression: expected list, found `{found}`")]
     NonListIndex { found: DecType },
 
-    #[error("E8: cannot mutate a builtin")]
-    /// E8: cannot mutate a builtin
+    #[error("E08: cannot mutate a builtin")]
     ImmutBuiltin,
 
-    #[error("E9: {_0} is an invalid list index")]
-    /// E9: {_0} is an invalid list index
+    #[error("E09: {_0} is an invalid list index")]
     BadIdx(i128),
+
+    #[error(
+        "E10: expected an item which can be a value, found {}",
+        match found {
+            Item::Module(_) => "module",
+            _ => unreachable!()
+        }
+    )]
+    NonValueItem { found: Item },
+
+    #[error("E11: item `{root}` has not been imported or declared")]
+    NoPathRoot { root: String },
+
+    #[error("E11: item `{child}` not found in `{parent}`")]
+    NoSubPath { child: String, parent: String },
 }
 
 /// (expr) -> !

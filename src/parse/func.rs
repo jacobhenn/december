@@ -1,9 +1,9 @@
 use super::{
     spaced0, spaced1,
-    statement::{block, identifier, Block, Identifier},
+    statement::{block, identifier, Block},
     types::dectype,
 };
-use crate::types::DecType;
+use crate::types::{DecType, FnType};
 use nom::{
     bytes::complete::tag,
     combinator::{cut, map},
@@ -20,7 +20,16 @@ pub struct DecFn {
     pub block: Block,
 }
 
-pub fn decfn<'a, E>(s: &'a str) -> IResult<&'a str, (Identifier, DecFn), E>
+impl DecFn {
+    pub fn dectype(&self) -> DecType {
+        DecType::Fn(FnType {
+            arg_types: self.args.iter().map(|a| a.dectype.clone()).collect(),
+            return_type: Box::new(self.return_type.clone()),
+        })
+    }
+}
+
+pub fn decfn<'a, E>(s: &'a str) -> IResult<&'a str, (String, DecFn), E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
@@ -48,7 +57,7 @@ where
 
 #[derive(Debug, Clone)]
 pub struct FnArg {
-    pub name: Identifier,
+    pub name: String,
     pub dectype: DecType,
 }
 

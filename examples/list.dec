@@ -1,6 +1,6 @@
 fn main() -> void {
     x := [56, 48, 39];
-    println(int2string(x[0]));
-    println(int2string(x[1]));
-    println(int2string(x[2]));
+    std::println(std::int::to_string(x[0]));
+    std::println(std::int::to_string(x[1]));
+    std::println(std::int::to_string(x[2]));
 }

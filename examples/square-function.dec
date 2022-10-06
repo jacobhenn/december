@@ -3,5 +3,5 @@ fn square(x: int) -> int {
 }
 
 fn main() -> void {
-    println(int2string(square(5)));
+    std::println(std::int::to_string(square(5)));
 }

@@ -1,156 +1,141 @@
-use lazy_static::lazy_static;
 use std::{collections::HashMap, io};
 
 use super::value::DecValue;
 use crate::{
-    parse::statement::Identifier,
+    parse::{Item, Module},
     types::{DecType, FnType},
 };
 
-lazy_static! {
-    pub static ref PRINTLN: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::String].into_boxed_slice(),
-            return_type: Box::new(DecType::Void),
-        },
-        func: |v| {
-            if let DecValue::String(s) = &v[0] {
-                println!("{s}");
-                DecValue::Void
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref GETLN: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![].into_boxed_slice(),
-            return_type: Box::new(DecType::String),
-        },
-        func: |_| {
-            let stdin = io::stdin();
-            let mut res = String::new();
-            stdin.read_line(&mut res).unwrap();
-            DecValue::String(res.trim().to_string())
-        },
-    };
-    pub static ref PRINT: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::String].into_boxed_slice(),
-            return_type: Box::new(DecType::Void),
-        },
-        func: |v| {
-            if let DecValue::String(s) = &v[0] {
-                print!("{s}");
-                DecValue::Void
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref INT2STRING: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::Int].into_boxed_slice(),
-            return_type: Box::new(DecType::String),
-        },
-        func: |v| {
-            if let DecValue::Int(i) = &v[0] {
-                DecValue::String(format!("{i}"))
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref FLOAT2STRING: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::Float].into_boxed_slice(),
-            return_type: Box::new(DecType::String),
-        },
-        func: |v| {
-            if let DecValue::Float(i) = &v[0] {
-                DecValue::String(format!("{i}"))
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref STRING2INT: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::String].into_boxed_slice(),
-            return_type: Box::new(DecType::Int),
-        },
-        func: |v| {
-            if let DecValue::String(s) = &v[0] {
-                DecValue::Int(s.parse().unwrap())
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref INT_ADD: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
-            return_type: Box::new(DecType::Int),
-        },
-        func: |v| {
-            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
-                DecValue::Int(x + y)
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref INT_MOD: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
-            return_type: Box::new(DecType::Int),
-        },
-        func: |v| {
-            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
-                DecValue::Int(x % y)
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref INT_MUL: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
-            return_type: Box::new(DecType::Int),
-        },
-        func: |v| {
-            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
-                DecValue::Int(x * y)
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref INT_GREATER: DecValue = DecValue::BuiltinFn {
-        fntype: FnType {
-            arg_types: vec![DecType::Int, DecType::Int].into_boxed_slice(),
-            return_type: Box::new(DecType::Bool),
-        },
-        func: |v| {
-            if let (DecValue::Int(x), DecValue::Int(y)) = (&v[0], &v[1]) {
-                DecValue::Bool(x > y)
-            } else {
-                unreachable!();
-            }
-        },
-    };
-    pub static ref BUILTINS: HashMap<Identifier, DecValue> = {
-        let mut m = HashMap::new();
-        m.insert(Identifier::from("println"), PRINTLN.clone());
-        m.insert(Identifier::from("getln"), GETLN.clone());
-        m.insert(Identifier::from("print"), PRINT.clone());
-        m.insert(Identifier::from("int2string"), INT2STRING.clone());
-        m.insert(Identifier::from("float2string"), FLOAT2STRING.clone());
-        m.insert(Identifier::from("string2int"), STRING2INT.clone());
-        m.insert(Identifier::from("int_add"), INT_ADD.clone());
-        m.insert(Identifier::from("int_mod"), INT_MOD.clone());
-        m.insert(Identifier::from("int_mul"), INT_MUL.clone());
-        m.insert(Identifier::from("int_greater"), INT_GREATER.clone());
-        m
-    };
+#[derive(Debug, Clone)]
+pub struct BuiltinFn {
+    pub fntype: FnType,
+    pub func: fn(Vec<DecValue>) -> DecValue,
+}
+
+macro_rules! decfn {
+    {
+        $funcname:ident($($argid:ident: $argty:ident),*) -> $rettype:ident $funcbody:block
+    } => {
+        #[allow(unused_variables, unused_mut)]
+        pub fn $funcname() -> Item {
+            let mut arg_types = Vec::new();
+            $(
+                arg_types.push(DecType::$argty);
+            )*
+
+            Item::BuiltinFn(BuiltinFn {
+                fntype: FnType {
+                    arg_types: arg_types.into_boxed_slice(),
+                    return_type: Box::new(DecType::$rettype),
+                },
+                func: |mut v| {
+                    $(
+                        // TODO: this is disgusting
+                        let $argid = if let DecValue::$argty($argid) = v.remove(0) {
+                            $argid
+                        } else {
+                            unreachable!("mismatched types in call of builtin function")
+                        };
+                    )*
+
+                    $funcbody
+                },
+            })
+        }
+    }
+}
+
+decfn! {
+    println(s: String) -> Void {
+        println!("{s}");
+        DecValue::Void
+    }
+}
+
+decfn! {
+    getln() -> String {
+        let stdin = io::stdin();
+        let mut res = String::new();
+        stdin.read_line(&mut res).unwrap();
+        DecValue::String(res.trim().to_string())
+    }
+}
+
+decfn! {
+    print(s: String) -> Void {
+        print!("{s}");
+        DecValue::Void
+    }
+}
+
+decfn! {
+    float_to_string(f: Float) -> String {
+        DecValue::String(f.to_string())
+    }
+}
+
+decfn! {
+    string_to_int(s: String) -> Int {
+        DecValue::Int(s.parse().unwrap())
+    }
+}
+
+decfn! {
+    int_to_string(n: Int) -> String {
+        DecValue::String(n.to_string())
+    }
+}
+
+decfn! {
+    int_add(lhs: Int, rhs: Int) -> Int {
+        DecValue::Int(lhs + rhs)
+    }
+}
+
+decfn! {
+    int_mod(lhs: Int, rhs: Int) -> Int {
+        DecValue::Int(lhs % rhs)
+    }
+}
+
+decfn! {
+    int_mul(lhs: Int, rhs: Int) -> Int {
+        DecValue::Int(lhs * rhs)
+    }
+}
+
+decfn! {
+    int_less(lhs: Int, rhs: Int) -> Bool {
+        DecValue::Bool(lhs < rhs)
+    }
+}
+
+pub fn int() -> Module {
+    let mut items = HashMap::new();
+    items.insert(String::from("to_string"), int_to_string());
+    items.insert(String::from("add"), int_add());
+    items.insert(String::from("mod"), int_mod());
+    items.insert(String::from("mul"), int_mul());
+    items.insert(String::from("less"), int_less());
+
+    Module { items }
+}
+
+pub fn float() -> Module {
+    let mut items = HashMap::new();
+    items.insert(String::from("to_string"), float_to_string());
+
+    Module { items }
+}
+
+pub fn std() -> Module {
+    let mut items = HashMap::new();
+    items.insert(String::from("int"), Item::Module(int()));
+    items.insert(String::from("float"), Item::Module(float()));
+
+    items.insert(String::from("println"), println());
+    items.insert(String::from("print"), print());
+    items.insert(String::from("getln"), getln());
+
+    Module { items }
 }

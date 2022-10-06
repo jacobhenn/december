@@ -1,6 +1,6 @@
 fn main() -> void {
     x := 123;
     y := 123.456;
-    println(int2string(x));
-    println(float2string(y));
+    std::println(std::int::to_string(x));
+    std::println(std::float::to_string(y));
 }

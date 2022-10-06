@@ -3,7 +3,7 @@ fn main() -> void {
     {
         x = "CUBE";
         x := "RHOMBUS";
-        println(x);
+        std::println(x);
     };
-    println(x);
+    std::println(x);
 }

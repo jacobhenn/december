@@ -1,6 +1,13 @@
 //! an interpreter for December, an imperative, strongly-typed programming language that i am
 //! making for fun.
 
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::new_without_default)]
+
 #[macro_use]
 pub mod error;
 
@@ -28,6 +35,10 @@ fn main() -> Result<()> {
 
     match parse::program::<VerboseError<&str>>(&contents) {
         Ok((_, program)) => {
+            if args.print_ast {
+                println!("{program:#?}");
+            }
+
             if let Err(e) = run::program(program) {
                 println!("Runtime error: {e:#}");
             }

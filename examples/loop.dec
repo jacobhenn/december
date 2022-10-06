@@ -2,8 +2,8 @@ fn main() -> void {
     x := [56, 48, 39];
     i := 0;
     loop {
-        println(int2string(x[i]));
-        i = int_add(i, 1);
-        i = int_mod(i, 3);
+        std::println(std::int::to_string(x[i]));
+        i = std::int::add(i, 1);
+        i = std::int::mod(i, 3);
     };
 }

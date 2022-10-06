@@ -1,7 +1,7 @@
 fn main() -> void {
     if false {
-        println("wat");
+        std::println("wat");
     } else {
-        println("phew");
+        std::println("phew");
     };
 }

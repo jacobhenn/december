@@ -4,12 +4,14 @@ use super::DecType;
 use crate::{
     error::{Result, RuntimeError},
     parse::statement::{Block, Expression, IndexExpr, ListExpr, LiteralExpr},
-    run::{value::DecValue, Scope},
+    run::{builtins::BuiltinFn, value::DecValue, Scope},
 };
 
 impl Block {
-    pub fn check_type(&self, scope: &Scope) -> Result<DecType> {
-        self.tail.as_ref().map_or(Ok(DecType::Void), |tail| tail.check_type(scope))
+    pub fn check_type(&self, scope: &mut Scope) -> Result<DecType> {
+        self.tail
+            .as_ref()
+            .map_or(Ok(DecType::Void), |tail| tail.check_type(scope))
     }
 }
 
@@ -17,7 +19,7 @@ impl Expression {
     /// trivially infer the type of an expression at runtime. additionally, verify that the
     /// expression is *internally consistent* (i.e., all branches of an if statement return the
     /// same type).
-    pub fn check_type(&self, scope: &Scope) -> Result<DecType> {
+    pub fn check_type(&self, scope: &mut Scope) -> Result<DecType> {
         let ty = match self {
             Expression::Literal(l) => match l {
                 LiteralExpr::String(_) => DecType::String,
@@ -26,18 +28,19 @@ impl Expression {
                 LiteralExpr::Float(_) => DecType::Float,
                 LiteralExpr::Void => DecType::Void,
             },
-            Expression::Identifier(i) => scope.get(i)?.dectype(),
+            Expression::Ident(i) => scope.get(i)?.dectype(),
+            Expression::Path(p) => scope.get_value_item(p)?.dectype(),
             Expression::FnCall(fn_call) => {
-                let func = scope.get(&fn_call.func)?;
+                let func = scope.evaluate_expr(&fn_call.func)?;
                 let call_args = fn_call.args.iter().map(|arg| arg.check_type(scope));
                 match func {
                     DecValue::Fn(func) => {
                         check_arg_types(func.args.iter().map(|arg| &arg.dectype), call_args)?;
-                        func.return_type.clone()
+                        func.return_type
                     }
-                    DecValue::BuiltinFn { fntype, .. } => {
+                    DecValue::BuiltinFn(BuiltinFn { fntype, .. }) => {
                         check_arg_types(fntype.arg_types.iter(), call_args)?;
-                        *fntype.return_type.clone()
+                        *fntype.return_type
                     }
                     v => return Err(RuntimeError::NonFunctionCall { found: v.dectype() }),
                 }
@@ -83,15 +86,13 @@ impl Expression {
                 }
                 DecType::List(Box::new(first_element_type))
             }
-            Expression::IndexExpr(IndexExpr { list, index }) => {
-                match scope.get(list)?.dectype() {
-                    DecType::List(element_type) => match index.check_type(scope)? {
-                        DecType::Int => *element_type,
-                        other => bail_type_error!(DecType::Int, other),
-                    },
-                    other => return Err(RuntimeError::NonListIndex { found: other }),
-                }
-            }
+            Expression::IndexExpr(IndexExpr { list, index }) => match scope.get(list)?.dectype() {
+                DecType::List(element_type) => match index.check_type(scope)? {
+                    DecType::Int => *element_type,
+                    other => bail_type_error!(DecType::Int, other),
+                },
+                other => return Err(RuntimeError::NonListIndex { found: other }),
+            },
             Expression::Loop(_) => DecType::Never,
             Expression::Block(b) => {
                 if let Some(tail) = &b.tail {

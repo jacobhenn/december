@@ -1,70 +1,120 @@
 pub mod builtins;
 pub mod value;
 
-use self::value::DecValue;
+use self::{builtins::BuiltinFn, value::DecValue};
 use crate::{
     error::{Result, RuntimeError},
     parse::{
         func::DecFn,
-        statement::{Block, Expression, Identifier, IndexExpr, LiteralExpr, LoopExpr, Statement},
-        Item, Program,
+        path::Path,
+        statement::{Block, Expression, IndexExpr, LiteralExpr, LoopExpr, Statement},
+        Item, Module,
     },
     types::DecType,
 };
-use builtins::BUILTINS;
 use std::{collections::HashMap, iter};
 
-/// a stack of maps of identifiers to values. each time a new scope is entered, a new map is pushed
-/// to the stack.
+/// values of identifiers in static and runtime scope.
 pub struct Scope {
+    /// static scope - all of the items currently in scope
+    items: HashMap<String, Item>,
+
     /// a stack of scopes, innermost last.
-    scopes: Vec<HashMap<Identifier, DecValue>>,
+    local: Vec<HashMap<String, DecValue>>,
 }
 
 impl Scope {
     /// create a scope consisting of a single empty map
     pub fn new() -> Self {
+        let mut items = HashMap::new();
+        items.insert(String::from("std"), Item::Module(builtins::std()));
         Self {
-            scopes: vec![HashMap::new()],
+            items,
+            local: vec![HashMap::new()],
         }
     }
 
-    /// get a reference to the vaule assigned to the given identifier in the inner*most* scope.
-    /// traverse the current scope from most local to global until the identifier is found.
-    pub fn get(&self, ident: &Identifier) -> Result<&DecValue> {
-        for scope in &self.scopes {
-            if let Some(val) = scope.get(ident) {
-                return Ok(val);
+    /// get a reference to the item referred to by the given *relative* path in the current static
+    /// scope.
+    pub fn get_item(&self, path: &Path) -> Result<&Item> {
+        let mut components = path.components();
+        let mut name_cursor = components.next().expect("empty path");
+        let mut item_cursor =
+            self.items
+                .get(name_cursor)
+                .ok_or_else(|| RuntimeError::NoPathRoot {
+                    root: name_cursor.clone(),
+                })?;
+        for component in components {
+            let err = || RuntimeError::NoSubPath {
+                parent: name_cursor.clone(),
+                child: component.clone(),
+            };
+
+            name_cursor = component;
+            if let Item::Module(module) = item_cursor {
+                item_cursor = module.items.get(component).ok_or_else(err)?;
+            } else {
+                return Err(err());
             }
         }
 
-        if let Some(val) = BUILTINS.get(ident) {
+        Ok(item_cursor)
+    }
+
+    /// get a clone of the static value referred to by the given *relative* path in the current
+    /// static scope. returns an error if the path terminates at a module or other non-value tiem
+    pub fn get_value_item(&self, path: &Path) -> Result<DecValue> {
+        // TODO: include item path in this error
+        let item = self.get_item(path)?;
+        match item {
+            Item::Fn(f) => Ok(DecValue::Fn(f.clone())),
+            Item::BuiltinFn(f) => Ok(DecValue::BuiltinFn(f.clone())),
+            Item::Module(_) => Err(RuntimeError::NonValueItem {
+                found: item.clone(),
+            }),
+        }
+    }
+
+    /// get a clone of the vaule assigned to the given identifier in the inner*most* scope.
+    /// traverse the current scope outward until the identifier is found. if the identifier
+    /// is not found in runtime scope, look for an item in static scope which can be converted
+    /// to an immutable value, such as a `fn` or `const` item.
+    pub fn get(&self, ident: &str) -> Result<DecValue> {
+        for scope in self.local.iter().rev() {
+            if let Some(val) = scope.get(ident) {
+                return Ok(val.clone());
+            }
+        }
+
+        // TODO: make this result propogation better
+        if let Ok(val) = self.get_value_item(&Path::from(ident)) {
             return Ok(val);
         }
 
-        bail_ident_error!(ident.clone())
+        bail_ident_error!(ident.to_owned())
     }
 
     /// get a mutable reference to the value assigned to the given identifier in the inner*most*
     /// scope. does not return `Ok` if the identifier references a function or other item for
     /// which it would not make sense to mutate.
-    pub fn get_mut(&mut self, ident: &Identifier) -> Result<&mut DecValue> {
-        for scope in &mut self.scopes {
+    pub fn get_mut(&mut self, ident: &str) -> Result<&mut DecValue> {
+        for scope in &mut self.local {
             if let Some(val) = scope.get_mut(ident) {
                 return Ok(val);
             }
         }
 
-        if BUILTINS.contains_key(ident) {
+        if self.items.contains_key(ident) {
             return Err(RuntimeError::ImmutBuiltin);
         }
 
-        bail_ident_error!(ident.clone())
+        bail_ident_error!(ident.to_owned())
     }
 
     /// define the given identifier to be the given value in the innermost scope.
-    pub fn insert(&mut self, ident: Identifier, value: DecValue) {
-        self.scopes
+    pub fn insert(&mut self, ident: String, value: DecValue) {
+        self.local
             .last_mut()
             .expect("missing scope")
             .insert(ident, value);
@@ -93,7 +143,7 @@ impl Scope {
     /// create a new scope, evaluate all the statements of the given block in order, and return
     /// either the tail expression or `void`.
     pub fn evaluate_block(&mut self, block: &Block) -> Result<DecValue> {
-        self.scopes.push(HashMap::new());
+        self.local.push(HashMap::new());
 
         for statement in &block.statements {
             self.run_statement(statement)?;
@@ -104,7 +154,7 @@ impl Scope {
             .as_ref()
             .map_or(Ok(DecValue::Void), |tail| self.evaluate_expr(tail));
 
-        self.scopes.pop();
+        self.local.pop();
 
         res
     }
@@ -121,15 +171,16 @@ impl Scope {
                 LiteralExpr::Float(f) => Ok(DecValue::Float(*f)),
                 LiteralExpr::Void => Ok(DecValue::Void),
             },
-            Expression::Identifier(i) => Ok(self.get(i)?.clone()),
+            Expression::Ident(i) => Ok(self.get(i)?),
+            Expression::Path(p) => Ok(self.get_value_item(p)?),
             Expression::FnCall(call) => {
                 let args = call
                     .args
                     .iter()
                     .map(|arg| self.evaluate_expr(arg))
                     .collect::<Result<Vec<_>>>()?;
-                match self.get(&call.func)?.clone() {
-                    DecValue::BuiltinFn { func, .. } => Ok(func(args)),
+                match self.evaluate_expr(&call.func)? {
+                    DecValue::BuiltinFn(BuiltinFn { func, .. }) => Ok(func(args)),
                     DecValue::Fn(f) => {
                         self.run_func(&f, iter::zip(f.args.iter().map(|a| a.name.clone()), args))
                     }
@@ -188,38 +239,36 @@ impl Scope {
     /// the given function in a new scope.
     pub fn run_func<Z>(&mut self, f: &DecFn, args: Z) -> Result<DecValue>
     where
-        Z: Iterator<Item = (Identifier, DecValue)>,
+        Z: Iterator<Item = (String, DecValue)>,
     {
-        self.scopes.push(HashMap::new());
+        self.local.push(HashMap::new());
 
         for (ident, val) in args {
             self.insert(ident, val);
         }
 
         let res = self.evaluate_block(&f.block);
-        self.scopes.pop();
+        self.local.pop();
         res
     }
 
-    /// bring the value of the given item into the current scope under the given name
-    pub fn setup_item(&mut self, (ident, item): (Identifier, Item)) {
-        match item {
-            Item::Fn(f) => self.insert(ident, DecValue::Fn(f)),
+    /// create a new scope containing all of the top-level items of `root` in static scope
+    pub fn from_root(root: Module) -> Self {
+        let mut res = Self::new();
+        for (ident, item) in root.items {
+            res.items.insert(ident, item);
         }
+        res
     }
 }
 
 /// find the given program's `main` function and run it
-pub fn program(program: Program) -> Result<()> {
-    let mut scope = Scope::new();
-    for item in program.items {
-        scope.setup_item(item);
-    }
+pub fn program(module: Module) -> Result<()> {
+    let mut scope = Scope::from_root(module);
 
     if let DecValue::Fn(main) = scope
-        .get(&Identifier::new(String::from("main")))
+        .get("main")
         .map_err(|_| RuntimeError::MissingMain)?
-        .clone()
     {
         if main.args.is_empty() && main.return_type == DecType::Void {
             return scope.run_func(&main, iter::empty()).map(|_| ());

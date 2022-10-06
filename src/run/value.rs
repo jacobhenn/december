@@ -1,16 +1,15 @@
 use crate::{
     parse::func::DecFn,
-    types::{DecType, FnType},
+    types::DecType,
 };
+
+use super::builtins::BuiltinFn;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone)]
 pub enum DecValue {
     Fn(DecFn),
-    BuiltinFn {
-        fntype: FnType,
-        func: fn(Vec<DecValue>) -> DecValue,
-    },
+    BuiltinFn(BuiltinFn),
     String(String),
     Bool(bool),
     Int(i128),
@@ -23,13 +22,8 @@ impl DecValue {
     /// get the type of the given value
     pub fn dectype(&self) -> DecType {
         match self {
-            Self::Fn(DecFn {
-                args, return_type, ..
-            }) => DecType::Fn(FnType {
-                arg_types: args.iter().map(|a| a.dectype.clone()).collect(),
-                return_type: Box::new(return_type.clone()),
-            }),
-            Self::BuiltinFn { fntype, .. } => DecType::Fn(fntype.clone()),
+            Self::Fn(f) => f.dectype(),
+            Self::BuiltinFn( BuiltinFn { fntype, .. }) => DecType::Fn(fntype.clone()),
             Self::String(_) => DecType::String,
             Self::Bool(_) => DecType::Bool,
             Self::Void => DecType::Void,

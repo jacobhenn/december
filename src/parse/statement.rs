@@ -1,4 +1,4 @@
-use super::{spaced0, spaced1, string};
+use super::{path::Path, spaced0, spaced1, string};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -9,8 +9,8 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::fmt::Display;
 
+// TODO: make this use Rc<[T]> so that cloning is shallow
 #[derive(Debug, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>,
@@ -67,37 +67,47 @@ where
 #[derive(Debug, Clone)]
 pub enum Expression {
     Literal(LiteralExpr),
-    Identifier(Identifier),
+    Ident(String),
     FnCall(FnCallExpr),
     If(IfExpr),
     Loop(LoopExpr),
     List(ListExpr),
     IndexExpr(IndexExpr),
     Block(Block),
+    Path(Path),
 }
 
 pub fn expression<'a, E>(s: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
-    let (s, x) = alt((
+    let (s, expr0) = alt((
         map(if_expr, Expression::If),
         map(loop_expr, Expression::Loop),
         map(list_expr, Expression::List),
         map(block, Expression::Block),
         map(index_expr, Expression::IndexExpr),
-        map(fn_call_expr, Expression::FnCall),
         map(literal_expr, Expression::Literal),
-        map(identifier, Expression::Identifier),
+        // TODO: collapse these
+        path_or_ident,
     ))(s)?;
-    if let Ok((s, op)) = spaced0::<_, _, E>(binop)(s) {
-        let (s, y) = cut(context(
+
+    if let Ok((s, args)) = spaced0::<_, _, E>(fn_call_args)(s) {
+        Ok((
+            s,
+            Expression::FnCall(FnCallExpr {
+                func: Box::new(expr0),
+                args,
+            }),
+        ))
+    } else if let Ok((s, op)) = spaced0::<_, _, E>(binop)(s) {
+        let (s, expr1) = cut(context(
             "second argument of binary operator",
             spaced0(expression),
         ))(s)?;
-        Ok((s, build_binop_expr(op, x, y)))
+        Ok((s, build_binop_expr(op, expr0, expr1)))
     } else {
-        Ok((s, x))
+        Ok((s, expr0))
     }
 }
 
@@ -193,61 +203,17 @@ where
     alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(s)
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-pub struct Identifier {
-    name: String,
-}
-
-impl Identifier {
-    pub const fn new(name: String) -> Self {
-        Self { name }
-    }
-}
-
-impl From<&str> for Identifier {
-    fn from(s: &str) -> Self {
-        Self {
-            name: s.to_string(),
-        }
-    }
-}
-
-impl Display for Identifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-pub fn identifier<'a, E>(s: &'a str) -> IResult<&'a str, Identifier, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str>,
-{
-    context(
-        "identifier",
-        map(
-            recognize(pair(
-                alt((alpha1, tag("_"))),
-                many0_count(alt((alphanumeric1, tag("_")))),
-            )),
-            |name: &str| Identifier {
-                name: name.to_string(),
-            },
-        ),
-    )(s)
-}
-
 #[derive(Debug, Clone)]
 pub struct FnCallExpr {
-    pub func: Identifier,
-    pub args: Box<[Expression]>,
+    pub func: Box<Expression>,
+    pub args: Vec<Expression>,
 }
 
-pub fn fn_call_expr<'a, E>(s: &'a str) -> IResult<&'a str, FnCallExpr, E>
+pub fn fn_call_args<'a, E>(s: &'a str) -> IResult<&'a str, Vec<Expression>, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
-    let (s, func) = context("function of call expression", identifier)(s)?;
-    let (s, args) = delimited(
+    delimited(
         tag("("),
         // after consuming an identifier followed by `(`, we are now in the correct branch and
         // can `cut` out
@@ -256,32 +222,24 @@ where
             context("argument of call expression", spaced0(expression)),
         )),
         cut(context("closing `)` of call expression", spaced0(tag(")")))),
-    )(s)?;
-
-    Ok((
-        s,
-        FnCallExpr {
-            func,
-            args: args.into_boxed_slice(),
-        },
-    ))
+    )(s)
 }
 
 #[test]
-fn test_fn_call_expr() {
+fn test_fn_call_args() {
     use assert_matches::assert_matches;
     use nom::error::VerboseError;
 
-    assert_matches!(fn_call_expr::<VerboseError<&str>>("foo()"), Ok(_));
-    assert_matches!(fn_call_expr::<VerboseError<&str>>("foo(x , y,z )"), Ok(_));
-    assert_matches!(fn_call_expr::<VerboseError<&str>>("foo(,)"), Err(_));
-    assert_matches!(fn_call_expr::<VerboseError<&str>>("foo(x,)"), Err(_));
-    assert_matches!(fn_call_expr::<VerboseError<&str>>("foo(x, y"), Err(_));
+    assert_matches!(fn_call_args::<VerboseError<&str>>("()"), Ok(_));
+    assert_matches!(fn_call_args::<VerboseError<&str>>("(x , y,z )"), Ok(_));
+    assert_matches!(fn_call_args::<VerboseError<&str>>("(,)"), Err(_));
+    assert_matches!(fn_call_args::<VerboseError<&str>>("(x,)"), Err(_));
+    assert_matches!(fn_call_args::<VerboseError<&str>>("(x, y"), Err(_));
 }
 
 #[derive(Debug, Clone)]
 pub struct Definition {
-    pub name: Identifier,
+    pub name: String,
     pub value: Expression,
 }
 
@@ -383,7 +341,7 @@ fn test_list_expr() {
 
 #[derive(Debug, Clone)]
 pub struct IndexExpr {
-    pub list: Identifier,
+    pub list: String,
     pub index: Box<Expression>,
 }
 
@@ -438,7 +396,7 @@ where
 
 #[derive(Debug, Clone)]
 pub struct Assignment {
-    pub name: Identifier,
+    pub name: String,
     pub value: Expression,
 }
 
@@ -469,16 +427,16 @@ where
 fn build_binop_expr(op: &str, x: Expression, y: Expression) -> Expression {
     match op {
         "+" => Expression::FnCall(FnCallExpr {
-            func: Identifier::from("int_add"),
-            args: vec![x, y].into_boxed_slice(),
+            func: Box::new(Expression::Path(Path::from("std::int::add"))),
+            args: vec![x, y],
         }),
         "*" => Expression::FnCall(FnCallExpr {
-            func: Identifier::from("int_mul"),
-            args: vec![x, y].into_boxed_slice(),
+            func: Box::new(Expression::Path(Path::from("std::int::mul"))),
+            args: vec![x, y],
         }),
         "%" => Expression::FnCall(FnCallExpr {
-            func: Identifier::from("int_mod"),
-            args: vec![x, y].into_boxed_slice(),
+            func: Box::new(Expression::Path(Path::from("std::int::mod"))),
+            args: vec![x, y],
         }),
         _ => unreachable!(),
     }
@@ -492,4 +450,38 @@ fn test_operator_expr() {
     assert_matches!(expression::<VerboseError<&str>>("x+y"), Ok(_));
     assert_matches!(expression::<VerboseError<&str>>("x  %3"), Ok(_));
     assert_matches!(expression::<VerboseError<&str>>("x ++ 3"), Err(_));
+}
+
+pub fn identifier<'a, E>(s: &'a str) -> IResult<&'a str, String, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str>,
+{
+    context(
+        "identifier",
+        map(
+            recognize(pair(
+                alt((alpha1, tag("_"))),
+                many0_count(alt((alphanumeric1, tag("_")))),
+            )),
+            str::to_string,
+        ),
+    )(s)
+}
+
+pub fn path_or_ident<'a, E>(s: &'a str) -> IResult<&'a str, Expression, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str> + 'a,
+{
+    let (s, init) = identifier(s)?;
+    if let Ok((s, _)) = spaced0::<_, _, E>(tag("::"))(s) {
+        let (s, mut components) = separated_list1(
+            spaced0(tag("::")),
+            cut(context("path segment", spaced0(identifier))),
+        )(s)?;
+        // TODO: you know what you did
+        components.insert(0, init);
+        Ok((s, Expression::Path(Path::new(components))))
+    } else {
+        Ok((s, Expression::Ident(init)))
+    }
 }

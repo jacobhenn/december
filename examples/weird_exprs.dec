@@ -1,14 +1,11 @@
 fn    main     (         )->          void{s:="Hello, world!"
-; x    := println("test"); println(       s     )
+; x    := std
+
+::
+
+println("test" ) ; std:: println(       s     )
 
 
 
 ;
-    y:= x
-
-
-
-
-
-;
-    println(                        y);     }
+    std            ::println(                        "stuff");     }

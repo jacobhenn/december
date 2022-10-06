@@ -2,6 +2,7 @@ pub mod func;
 pub mod statement;
 pub mod string;
 pub mod types;
+pub mod path;
 
 use func::decfn;
 use nom::{
@@ -13,18 +14,18 @@ use nom::{
     sequence::{pair, preceded, tuple},
     IResult,
 };
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
-use self::statement::Identifier;
+use crate::{run::builtins::BuiltinFn, types::DecType};
 
 /// a `T` along with its position in the input stream
-pub struct Located<'a, T, Position>
-where
-    Position: Deref<Target = &'a str>,
-{
-    inner: T,
-    position: Position,
-}
+// pub struct Located<'a, T, Position>
+// where
+//     Position: Deref<Target = &'a str>,
+// {
+//     inner: T,
+//     position: Position,
+// }
 
 pub fn comment<'a, E>(s: &'a str) -> IResult<&'a str, (), E>
 where
@@ -59,15 +60,15 @@ where
 }
 
 #[test]
-fn test_comments() {
-    use crate::parse::statement::expression;
+fn test_good_comments() {
+    use crate::parse::statement::fn_call_args;
     use assert_matches::assert_matches;
     use nom::error::VerboseError;
 
-    assert_matches!(expression::<VerboseError<&str>>("f(x, y) // foo"), Ok(_));
+    assert_matches!(fn_call_args::<VerboseError<&str>>("(x, y) // foo"), Ok(_));
     assert_matches!(
-        expression::<VerboseError<&str>>(
-            "f(
+        fn_call_args::<VerboseError<&str>>(
+            "(
             x, // foo
             y  // bar
     )"
@@ -87,31 +88,51 @@ fn test_comments() {
         ),
         Ok(_)
     );
-    assert_matches!(expression::<VerboseError<&str>>("f(x, // foo y)"), Err(_));
 }
 
-#[derive(Debug)]
+#[test]
+#[should_panic]
+fn test_bad_comments() {
+    use crate::parse::statement::expression;
+    use assert_matches::assert_matches;
+    use nom::error::VerboseError;
+
+    assert_matches!(expression::<VerboseError<&str>>("f(x, // foo y)"), Ok(("", _)));
+}
+
+#[derive(Debug, Clone)]
 pub enum Item {
     Fn(func::DecFn),
+    BuiltinFn(BuiltinFn),
+    Module(Module),
 }
 
-pub fn item<'a, E>(s: &'a str) -> IResult<&'a str, (Identifier, Item), E>
+impl Item {
+    pub fn dectype(&self) -> Option<DecType> {
+        match self {
+            Item::Fn(f) => Some(f.dectype()),
+            _ => None,
+        }
+    }
+}
+
+pub fn item<'a, E>(s: &'a str) -> IResult<&'a str, (String, Item), E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
     context("item", map(decfn, |(i, f)| (i, Item::Fn(f))))(s)
 }
 
-#[derive(Debug)]
-pub struct Program {
-    pub items: HashMap<Identifier, Item>,
+#[derive(Debug, Clone)]
+pub struct Module {
+    pub items: HashMap<String, Item>,
 }
 
-pub fn program<'a, E>(s: &'a str) -> IResult<&'a str, Program, E>
+pub fn program<'a, E>(s: &'a str) -> IResult<&'a str, Module, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
-    let (s, res) = map(many0(spaced0(item)), |items| Program {
+    let (s, res) = map(many0(spaced0(item)), |items| Module {
         items: items.into_iter().collect(),
     })(s)?;
     let (s, _) = context("item", spaced0(eof))(s)?;
