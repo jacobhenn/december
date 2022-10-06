@@ -88,8 +88,8 @@ impl Scope {
         }
 
         // TODO: make this result propogation better
-        if let Ok(val) = self.get_value_item(&Path::from(ident)) {
-            return Ok(val);
+        if let val@Ok(_) = self.get_value_item(&Path::from(ident)) {
+            return val;
         }
 
         bail_ident_error!(ident.to_owned())

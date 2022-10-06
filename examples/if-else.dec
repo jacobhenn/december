@@ -1,6 +1,8 @@
 fn main() -> void {
     if false {
         std::println("wat");
+    } else if false {
+        std::println("!!");
     } else {
         std::println("phew");
     };

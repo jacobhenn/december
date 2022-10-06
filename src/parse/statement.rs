@@ -88,7 +88,6 @@ where
         map(block, Expression::Block),
         map(index_expr, Expression::IndexExpr),
         map(literal_expr, Expression::Literal),
-        // TODO: collapse these
         path_or_ident,
     ))(s)?;
 
@@ -270,7 +269,6 @@ pub fn if_expr<'a, E>(s: &'a str) -> IResult<&'a str, IfExpr, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
-    // TODO: clean up prepending to vector
     let (s, first_condition) = preceded(
         tag("if"),
         preceded(
@@ -278,12 +276,14 @@ where
             cut(context("condition of `if` statement", if_condition)),
         ),
     )(s)?;
-    let (s, mut conditions) = many0(preceded(
-        spaced0(tag("else if")),
-        cut(spaced1(if_condition)),
+
+    let mut conditions = vec![first_condition];
+    let (s, _) = many0(map(
+        preceded(spaced0(tag("else if")), cut(spaced1(if_condition))),
+        |c| conditions.push(c),
     ))(s)?;
     let (s, else_block) = opt(preceded(spaced0(tag("else")), cut(spaced1(block))))(s)?;
-    conditions.insert(0, first_condition);
+
     Ok((
         s,
         IfExpr {
@@ -474,12 +474,13 @@ where
 {
     let (s, init) = identifier(s)?;
     if let Ok((s, _)) = spaced0::<_, _, E>(tag("::"))(s) {
-        let (s, mut components) = separated_list1(
+        let mut components = vec![init];
+        let (s, _) = separated_list1(
             spaced0(tag("::")),
-            cut(context("path segment", spaced0(identifier))),
+            map(cut(context("path segment", spaced0(identifier))), |c| {
+                components.push(c)
+            }),
         )(s)?;
-        // TODO: you know what you did
-        components.insert(0, init);
         Ok((s, Expression::Path(Path::new(components))))
     } else {
         Ok((s, Expression::Ident(init)))
