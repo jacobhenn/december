@@ -1,9 +1,3 @@
 fn main() -> void {
-    if false {
-        println("test");
-    } else if true {
-        println("things");
-    } else {
-        println("stuff");
-    };
+    std::int();
 }

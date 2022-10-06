@@ -1,6 +1,6 @@
 pub mod parse;
 
-use crate::{parse::Item, types::DecType};
+use crate::{parse::{Item, path::Path}, types::DecType};
 use thiserror::Error;
 
 /// an alias for `Result<T, RuntimeError>`
@@ -50,6 +50,15 @@ pub enum RuntimeError {
         }
     )]
     NonValueItem { found: Item },
+
+    #[error(
+        "E10: expected `{path}` to be an item which can be a value, found {}",
+        match found {
+            Item::Module(_) => "module",
+            _ => unreachable!()
+        }
+    )]
+    NonValuePath { found: Item, path: Path },
 
     #[error("E11: item `{root}` has not been imported or declared")]
     NoPathRoot { root: String },

@@ -65,13 +65,13 @@ impl Scope {
     /// get a clone of the static value referred to by the given *relative* path in the current
     /// static scope. returns an error if the path terminates at a module or other non-value tiem
     pub fn get_value_item(&self, path: &Path) -> Result<DecValue> {
-        // TODO: include item path in this error
         let item = self.get_item(path)?;
         match item {
             Item::Fn(f) => Ok(DecValue::Fn(f.clone())),
             Item::BuiltinFn(f) => Ok(DecValue::BuiltinFn(f.clone())),
-            Item::Module(_) => Err(RuntimeError::NonValueItem {
+            Item::Module(_) => Err(RuntimeError::NonValuePath {
                 found: item.clone(),
+                path: path.clone(),
             }),
         }
     }

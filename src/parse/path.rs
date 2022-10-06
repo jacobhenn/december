@@ -1,8 +1,16 @@
+use std::fmt::Display;
+
 /// a path, such as `std::vec::Vec::push`. path components are literally separated by the pattern
 /// "::".
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Path {
     components: Vec<String>,
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.components.join("::"))
+    }
 }
 
 pub struct Components<'a> {
