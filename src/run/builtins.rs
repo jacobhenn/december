@@ -110,6 +110,12 @@ decfn! {
     }
 }
 
+decfn! {
+    int_greater(lhs: Int, rhs: Int) -> Bool {
+        DecValue::Bool(lhs > rhs)
+    }
+}
+
 pub fn int() -> Module {
     let mut items = HashMap::new();
     items.insert(String::from("to_string"), int_to_string());
@@ -117,6 +123,7 @@ pub fn int() -> Module {
     items.insert(String::from("mod"), int_mod());
     items.insert(String::from("mul"), int_mul());
     items.insert(String::from("less"), int_less());
+    items.insert(String::from("greater"), int_greater());
 
     Module { items }
 }

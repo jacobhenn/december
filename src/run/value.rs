@@ -16,6 +16,7 @@ pub enum DecValue {
     Float(f64),
     Void,
     List(DecType, Vec<DecValue>),
+    Break,
 }
 
 impl DecValue {
@@ -30,6 +31,11 @@ impl DecValue {
             Self::Int(_) => DecType::Int,
             Self::Float(_) => DecType::Float,
             Self::List(t, ..) => DecType::List(Box::new(t.clone())),
+            Self::Break => unreachable!(),
         }
+    }
+
+    pub const fn is_break(&self) -> bool {
+        matches!(self, Self::Break)
     }
 }

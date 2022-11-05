@@ -42,6 +42,7 @@ pub enum Statement {
     Definition(Definition),
     Expression(Expression),
     Assignment(Assignment),
+    Break,
 }
 
 pub fn statement<'a, E>(s: &'a str) -> IResult<&'a str, Statement, E>
@@ -49,6 +50,10 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + 'a,
 {
     alt((
+        terminated(
+            map(tag("break"), |_| Statement::Break),
+            context("semicolon", spaced0(tag(";"))),
+        ),
         terminated(
             map(expression, Statement::Expression),
             context("semicolon", spaced0(tag(";"))),

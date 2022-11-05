@@ -65,6 +65,9 @@ pub enum RuntimeError {
 
     #[error("E11: item `{child}` not found in `{parent}`")]
     NoSubPath { child: String, parent: String },
+
+    #[error("E12: `break` outside of a loop")]
+    BadBreak,
 }
 
 /// (expr) -> !

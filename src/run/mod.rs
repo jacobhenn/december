@@ -14,6 +14,12 @@ use crate::{
 };
 use std::{collections::HashMap, iter};
 
+pub enum ControlFlow {
+    Complete,
+    Break,
+    // Continue,
+}
+
 /// values of identifiers in static and runtime scope.
 pub struct Scope {
     /// static scope - all of the items currently in scope
@@ -88,7 +94,7 @@ impl Scope {
         }
 
         // TODO: make this result propogation better
-        if let val@Ok(_) = self.get_value_item(&Path::from(ident)) {
+        if let val @ Ok(_) = self.get_value_item(&Path::from(ident)) {
             return val;
         }
 
@@ -121,10 +127,12 @@ impl Scope {
     }
 
     /// evaluate a statement and discard the result
-    pub fn run_statement(&mut self, statement: &Statement) -> Result<()> {
+    pub fn run_statement(&mut self, statement: &Statement) -> Result<ControlFlow> {
         match statement {
             Statement::Expression(e) => {
-                self.evaluate_expr(e)?;
+                if self.evaluate_expr(e)?.is_break() {
+                    return Ok(ControlFlow::Break);
+                }
             }
             Statement::Definition(d) => {
                 let value = self.evaluate_expr(&d.value)?;
@@ -135,9 +143,12 @@ impl Scope {
                 let var = self.get_mut(&a.name)?;
                 *var = new_value;
             }
+            Statement::Break => {
+                return Ok(ControlFlow::Break);
+            }
         }
 
-        Ok(())
+        Ok(ControlFlow::Complete)
     }
 
     /// create a new scope, evaluate all the statements of the given block in order, and return
@@ -146,7 +157,10 @@ impl Scope {
         self.local.push(HashMap::new());
 
         for statement in &block.statements {
-            self.run_statement(statement)?;
+            match self.run_statement(statement)? {
+                ControlFlow::Complete => (),
+                ControlFlow::Break => return Ok(DecValue::Break),
+            }
         }
 
         let res = block
@@ -229,7 +243,9 @@ impl Scope {
                 }
             }
             Expression::Loop(LoopExpr { block }) => loop {
-                self.evaluate_block(block)?;
+                if self.evaluate_block(block)?.is_break() {
+                    break Ok(DecValue::Void);
+                };
             },
             Expression::Block(b) => self.evaluate_block(b),
         }
@@ -248,6 +264,10 @@ impl Scope {
         }
 
         let res = self.evaluate_block(&f.block);
+        if res.as_ref().map_or(false, DecValue::is_break) {
+            return Err(RuntimeError::BadBreak);
+        }
+
         self.local.pop();
         res
     }
@@ -266,10 +286,7 @@ impl Scope {
 pub fn program(module: Module) -> Result<()> {
     let mut scope = Scope::from_root(module);
 
-    if let DecValue::Fn(main) = scope
-        .get("main")
-        .map_err(|_| RuntimeError::MissingMain)?
-    {
+    if let DecValue::Fn(main) = scope.get("main").map_err(|_| RuntimeError::MissingMain)? {
         if main.args.is_empty() && main.return_type == DecType::Void {
             return scope.run_func(&main, iter::empty()).map(|_| ());
         }

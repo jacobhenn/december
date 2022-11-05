@@ -1,0 +1,13 @@
+fn main() -> void {
+    x := 0;
+    loop {
+        x = std::int::add(x, 1);
+        if std::int::greater(x, 50000) {
+            std::println("reached fifty thousand");
+            break;
+        } else {
+            std::print("x: ");
+            std::println(std::int::to_string(x));
+        };
+    };
+}
