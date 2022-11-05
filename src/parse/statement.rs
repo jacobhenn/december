@@ -138,6 +138,7 @@ macro_rules! digit {
     };
 }
 
+#[allow(clippy::option_if_let_else)]
 pub fn int<'a, E>(s: &'a str) -> IResult<&'a str, i128, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str>,
@@ -160,6 +161,7 @@ fn test_int() {
     assert!(int::<VerboseError<&str>>("foo").is_err());
 }
 
+#[allow(clippy::option_if_let_else)]
 pub fn float<'a, E>(s: &'a str) -> IResult<&'a str, f64, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str>,
@@ -478,7 +480,7 @@ where
         let (s, _) = separated_list1(
             spaced0(tag("::")),
             map(cut(context("path segment", spaced0(identifier))), |c| {
-                components.push(c)
+                components.push(c);
             }),
         )(s)?;
         Ok((s, Expression::Path(Path::new(components))))

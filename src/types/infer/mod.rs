@@ -21,16 +21,16 @@ impl Expression {
     /// same type).
     pub fn check_type(&self, scope: &mut Scope) -> Result<DecType> {
         let ty = match self {
-            Expression::Literal(l) => match l {
+            Self::Literal(l) => match l {
                 LiteralExpr::String(_) => DecType::String,
                 LiteralExpr::Bool(_) => DecType::Bool,
                 LiteralExpr::Int(_) => DecType::Int,
                 LiteralExpr::Float(_) => DecType::Float,
                 LiteralExpr::Void => DecType::Void,
             },
-            Expression::Ident(i) => scope.get(i)?.dectype(),
-            Expression::Path(p) => scope.get_value_item(p)?.dectype(),
-            Expression::FnCall(fn_call) => {
+            Self::Ident(i) => scope.get(i)?.dectype(),
+            Self::Path(p) => scope.get_value_item(p)?.dectype(),
+            Self::FnCall(fn_call) => {
                 let func = scope.evaluate_expr(&fn_call.func)?;
                 let call_args = fn_call.args.iter().map(|arg| arg.check_type(scope));
                 match func {
@@ -45,7 +45,7 @@ impl Expression {
                     v => return Err(RuntimeError::NonFunctionCall { found: v.dectype() }),
                 }
             }
-            Expression::If(if_expr) => {
+            Self::If(if_expr) => {
                 let mut blocks_iter = if_expr
                     .branches
                     .iter()
@@ -72,7 +72,7 @@ impl Expression {
 
                 first_block_type
             }
-            Expression::List(ListExpr { elements }) => {
+            Self::List(ListExpr { elements }) => {
                 if elements.is_empty() {
                     return Err(RuntimeError::EmptyList);
                 }
@@ -86,15 +86,15 @@ impl Expression {
                 }
                 DecType::List(Box::new(first_element_type))
             }
-            Expression::IndexExpr(IndexExpr { list, index }) => match scope.get(list)?.dectype() {
+            Self::IndexExpr(IndexExpr { list, index }) => match scope.get(list)?.dectype() {
                 DecType::List(element_type) => match index.check_type(scope)? {
                     DecType::Int => *element_type,
                     other => bail_type_error!(DecType::Int, other),
                 },
                 other => return Err(RuntimeError::NonListIndex { found: other }),
             },
-            Expression::Loop(_) => DecType::Never,
-            Expression::Block(b) => {
+            Self::Loop(_) => DecType::Never,
+            Self::Block(b) => {
                 if let Some(tail) = &b.tail {
                     tail.check_type(scope)?
                 } else {

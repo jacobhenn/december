@@ -110,7 +110,7 @@ pub enum Item {
 impl Item {
     pub fn dectype(&self) -> Option<DecType> {
         match self {
-            Item::Fn(f) => Some(f.dectype()),
+            Self::Fn(f) => Some(f.dectype()),
             _ => None,
         }
     }

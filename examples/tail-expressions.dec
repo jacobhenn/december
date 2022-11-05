@@ -16,5 +16,7 @@ fn main() -> void {
 
     if true {
         std::println("yay");
-    }
+    };
+
+    std::println("s p o n g e")
 }
